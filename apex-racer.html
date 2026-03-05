@@ -2156,15 +2156,13 @@ function setupMobileControls() {
   const accelerateBtn = document.getElementById('btn-accelerate');
   accelerateBtn.addEventListener('touchstart', e => {
     e.preventDefault();
-    Keys['KeyW'] = true;
-    Keys['ArrowUp'] = true;
+    Keys['up'] = true;
     accelerateBtn.classList.add('pressed');
   }, { passive: false });
 
   accelerateBtn.addEventListener('touchend', e => {
     e.preventDefault();
-    Keys['KeyW'] = false;
-    Keys['ArrowUp'] = false;
+    Keys['up'] = false;
     accelerateBtn.classList.remove('pressed');
   }, { passive: false });
 
@@ -2172,15 +2170,13 @@ function setupMobileControls() {
   const brakeBtn = document.getElementById('btn-brake');
   brakeBtn.addEventListener('touchstart', e => {
     e.preventDefault();
-    Keys['KeyS'] = true;
-    Keys['ArrowDown'] = true;
+    Keys['down'] = true;
     brakeBtn.classList.add('pressed');
   }, { passive: false });
 
   brakeBtn.addEventListener('touchend', e => {
     e.preventDefault();
-    Keys['KeyS'] = false;
-    Keys['ArrowDown'] = false;
+    Keys['down'] = false;
     brakeBtn.classList.remove('pressed');
   }, { passive: false });
 
@@ -2207,7 +2203,18 @@ function setupMobileControls() {
 
     // Update steering based on horizontal position
     const steerAmount = (clampedX - joystickCenterX) / maxDistance;
-    Player.steer = steerAmount * 0.8; // Adjust sensitivity
+    if (Math.abs(steerAmount) > 0.3) { // Deadzone
+      if (steerAmount > 0) {
+        Keys['right'] = true;
+        Keys['left'] = false;
+      } else {
+        Keys['left'] = true;
+        Keys['right'] = false;
+      }
+    } else {
+      Keys['left'] = false;
+      Keys['right'] = false;
+    }
   }
 
   joystick.addEventListener('touchstart', e => {
@@ -2240,7 +2247,8 @@ function setupMobileControls() {
     joystickActive = false;
     thumb.style.left = `${joystickCenterX - 20}px`;
     thumb.style.top = `${joystickCenterY - 20}px`;
-    Player.steer = 0;
+    Keys['left'] = false;
+    Keys['right'] = false;
   }, { passive: false });
 }
 
