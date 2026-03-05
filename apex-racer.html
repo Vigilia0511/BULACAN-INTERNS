@@ -740,7 +740,6 @@ const Keys = { up:false, down:false, left:false, right:false };
 /* ─── AUDIO ─── Web Audio API Synthesis */
 let audioCtx = null;
 let masterGain = null;
-const sounds = {};
 
 function getAudioCtx() {
   if (!audioCtx) {
@@ -861,10 +860,11 @@ function playBoostSound() {
   osc.stop(ac.currentTime + 0.22);
 }
 
+let engineActive = false;
 function playEngineLoop() {
-  // Continuous background engine hum
   const ac = getAudioCtx();
-  if (!ac) return;
+  if (!ac || engineActive) return;
+  engineActive = true;
   const osc1 = ac.createOscillator();
   const osc2 = ac.createOscillator();
   const gain = ac.createGain();
@@ -882,38 +882,60 @@ function playEngineLoop() {
   gain.connect(masterGain);
   osc1.start();
   osc2.start();
-  // Store for later stopping
-  sounds._engineOsc1 = osc1;
-  sounds._engineOsc2 = osc2;
+  window._audioEngines = { osc1, osc2 };
 }
 
 function stopEngineLoop() {
-  if (sounds._engineOsc1) {
-    sounds._engineOsc1.stop();
-    sounds._engineOsc2.stop();
-    delete sounds._engineOsc1;
-    delete sounds._engineOsc2;
+  if (window._audioEngines) {
+    window._audioEngines.osc1.stop();
+    window._audioEngines.osc2.stop();
+    delete window._audioEngines;
+    engineActive = false;
   }
 }
 
-// Create proxy objects that trigger synthesis
-const soundsProxy = new Proxy({}, {
-  get(target, prop) {
-    if (prop === 'beep') return { play: playBeep };
-    if (prop === 'start') return { play: playStartSound };
-    if (prop === 'finish') return { play: playFinishSound };
-    if (prop === 'crash') return { play: playCrashSound, currentTime: 0 };
-    if (prop === 'wrong') return { play: playWrongWaySound, currentTime: 0 };
-    if (prop === 'boost') return { play: playBoostSound };
-    if (prop === 'engine') return {
-      play: playEngineLoop,
-      paused: !sounds._engineOsc1,
-      currentTime: 0
-    };
-    return undefined;
-  }
-});
-Object.assign(sounds, soundsProxy);
+function playClickSound() {
+  const ac = getAudioCtx();
+  if (!ac) return;
+  const osc = ac.createOscillator();
+  const gain = ac.createGain();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(1200, ac.currentTime);
+  osc.frequency.exponentialRampToValueAtTime(800, ac.currentTime + 0.05);
+  gain.gain.setValueAtTime(0.2, ac.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.08);
+  osc.connect(gain);
+  gain.connect(masterGain);
+  osc.start();
+  osc.stop(ac.currentTime + 0.1);
+}
+
+const sounds = {
+  beep: { play: playBeep },
+  start: { play: playStartSound },
+  finish: { play: playFinishSound },
+  crash: { play: playCrashSound, currentTime: 0 },
+  wrong: { play: playWrongWaySound, currentTime: 0 },
+  boost: { play: playBoostSound },
+  engine: {
+    play: playEngineLoop,
+    pause: stopEngineLoop,
+    get paused() { return !engineActive; },
+    currentTime: 0
+  },
+  click: { play: playClickSound }
+};
+
+// Initialize audio on first user interaction
+function initAudioOnce() {
+  getAudioCtx();
+  document.removeEventListener('click', initAudioOnce);
+  document.removeEventListener('keydown', initAudioOnce);
+  document.removeEventListener('touchstart', initAudioOnce);
+}
+document.addEventListener('click', initAudioOnce);
+document.addEventListener('keydown', initAudioOnce);
+document.addEventListener('touchstart', initAudioOnce);
 
 /* ─── THREE.JS SETUP ─── */
 const canvas  = document.getElementById('game-canvas');
@@ -1778,10 +1800,10 @@ function updateHUD() {
   }
 
   // engine sound start/stop
-  if (State.phase === 'racing' && !sounds._engineOsc1) {
+  if (State.phase === 'racing' && !engineActive) {
     playEngineLoop();
   }
-  if (State.phase !== 'racing' && sounds._engineOsc1) {
+  if (State.phase !== 'racing' && engineActive) {
     stopEngineLoop();
   }
 
@@ -2071,22 +2093,6 @@ document.querySelectorAll('.mobile-btn').forEach(btn => {
   btn.addEventListener('mousedown',  () => { if(k) Keys[k] = true; });
   btn.addEventListener('mouseup',    () => { if(k) Keys[k] = false; });
 });
-
-function playClickSound() {
-  const ac = getAudioCtx();
-  if (!ac) return;
-  const osc = ac.createOscillator();
-  const gain = ac.createGain();
-  osc.type = 'sine';
-  osc.frequency.setValueAtTime(1200, ac.currentTime);
-  osc.frequency.exponentialRampToValueAtTime(800, ac.currentTime + 0.05);
-  gain.gain.setValueAtTime(0.2, ac.currentTime);
-  gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + 0.08);
-  osc.connect(gain);
-  gain.connect(masterGain);
-  osc.start();
-  osc.stop(ac.currentTime + 0.1);
-}
 
 // global click sound for UI widgets
 document.body.addEventListener('click', e => {
