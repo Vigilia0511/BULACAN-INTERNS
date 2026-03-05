@@ -1502,8 +1502,8 @@ function initAI() {
     AICars.push({
       car,
       t: startT,
-      speed: (0.06 + Math.random() * 0.04) * WORLD_SCALE,  // base speed
-      targetSpeed: 0.09 * WORLD_SCALE,
+      speed: (0.25 + Math.random() * 0.15) * WORLD_SCALE,  // Increased base speed
+      targetSpeed: 0.35 * WORLD_SCALE,  // Increased target speed
       angle,
       lap: 1,
       offset: offset * 0.5,
@@ -1642,8 +1642,8 @@ function updatePlayer(dt) {
         finishRace();
       }
     }
-  } else if (Player.lastT < crossZone && Player.t > 0.97) {
-    // Wrong way
+  } else if (Player.lastT > Player.t + 0.1) { // Player went backwards significantly
+    // Wrong way - only trigger if moving backwards by more than 10% of track
     if (!State.wrongWay) {
       if (sounds.wrong) { sounds.wrong.currentTime = 0; sounds.wrong.play(); }
     }
@@ -1673,14 +1673,20 @@ function updateAI(dt) {
   const frames = trackCurve.computeFrenetFrames(TRACK_DIVISIONS, true);
 
   AICars.forEach(ai => {
-    // Random speed variation
+    // Random speed variation - increased base speed
     ai.reactDelay -= dt;
     if (ai.reactDelay <= 0) {
-      ai.targetSpeed = (0.07 + Math.random() * 0.05) * WORLD_SCALE;
+      ai.targetSpeed = (0.3 + Math.random() * 0.2) * WORLD_SCALE; // Increased from 0.07-0.12 to 0.3-0.5
       ai.reactDelay = 1 + Math.random() * 2;
     }
     ai.speed += (ai.targetSpeed - ai.speed) * 1.5 * dt;
-    ai.t = (ai.t + ai.speed * dt / totalLength * 10) % 1;
+    const prevT = ai.t;
+    ai.t = (ai.t + ai.speed * dt / totalLength * 25) % 1;
+
+    // AI lap counting
+    if (prevT > 0.97 && ai.t < 0.015) {
+      ai.lap++;
+    }
 
     const pt  = trackCurve.getPointAt(ai.t);
     const tan = trackCurve.getTangentAt(ai.t);
