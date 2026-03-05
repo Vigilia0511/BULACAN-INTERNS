@@ -190,8 +190,9 @@ body {
   width: 160px;
   height: 160px;
   border-radius: 50%;
-  background: var(--glass);
-  border: 1px solid var(--glass-border);
+  background: radial-gradient(circle at 30% 30%, rgba(31,58,90,0.8), rgba(5,10,21,0.9));
+  border: 2px solid;
+  border-image: linear-gradient(135deg, rgba(0,221,255,0.8), rgba(255,0,153,0.6)) 1;
   backdrop-filter: blur(12px);
   display: flex;
   flex-direction: column;
@@ -199,6 +200,13 @@ body {
   justify-content: center;
   position: relative;
   overflow: hidden;
+  box-shadow: 0 0 40px rgba(0,221,255,0.4), inset 0 0 40px rgba(0,221,255,0.1), 0 0 80px rgba(0,221,255,0.2);
+  animation: speedometerGlow 3s ease-in-out infinite;
+}
+
+@keyframes speedometerGlow {
+  0%, 100% { box-shadow: 0 0 40px rgba(0,221,255,0.4), inset 0 0 40px rgba(0,221,255,0.1), 0 0 80px rgba(0,221,255,0.2); }
+  50% { box-shadow: 0 0 50px rgba(0,221,255,0.6), inset 0 0 50px rgba(0,221,255,0.15), 0 0 100px rgba(0,221,255,0.3); }
 }
 
 .speedo-ring::before {
@@ -213,18 +221,23 @@ body {
   font-family: 'Orbitron', sans-serif;
   font-size: 2.8rem;
   font-weight: 900;
-  color: #fff;
+  background: linear-gradient(135deg, #00ffff, #ff0099);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
   line-height: 1;
-  text-shadow: 0 0 20px rgba(255,34,51,0.8);
+  filter: drop-shadow(0 0 15px rgba(0,255,255,0.6));
 }
 
 #speed-unit {
   font-family: 'Rajdhani', sans-serif;
   font-size: 0.75rem;
   letter-spacing: 0.3em;
-  color: rgba(255,255,255,0.4);
+  color: #00ffff;
   text-transform: uppercase;
   margin-top: 2px;
+  font-weight: 700;
+  text-shadow: 0 0 10px rgba(0,255,255,0.6);
 }
 
 /* Arc progress */
@@ -291,14 +304,22 @@ body {
 /* Position indicator */
 #position-display {
   font-family: 'Orbitron', sans-serif;
-  font-size: 1.6rem;
+  font-size: 1.8rem;
   font-weight: 900;
-  color: #fff;
+  background: linear-gradient(135deg, #ffff00, #ffaa00);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  text-shadow: 0 0 20px rgba(255,170,0,0.6);
+  filter: drop-shadow(0 0 10px rgba(255,255,0,0.5));
 }
 
 #position-display sup {
-  font-size: 0.7rem;
-  color: var(--neon-yellow);
+  font-size: 0.8rem;
+  background: linear-gradient(135deg, #ffff00, #ffaa00);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
   vertical-align: super;
 }
 
@@ -310,10 +331,18 @@ body {
   width: 120px;
   height: 120px;
   border-radius: 50%;
-  background: var(--glass);
-  border: 1px solid var(--glass-border);
+  background: radial-gradient(circle at 30% 30%, rgba(20,40,60,0.85), rgba(5,10,20,0.9));
+  border: 2px solid;
+  border-image: linear-gradient(135deg, rgba(0,200,255,0.7), rgba(0,255,136,0.5)) 1;
   backdrop-filter: blur(12px);
   overflow: hidden;
+  box-shadow: 0 0 30px rgba(0,200,255,0.3), inset 0 0 30px rgba(0,200,255,0.1);
+  animation: minimapGlow 4s ease-in-out infinite;
+}
+
+@keyframes minimapGlow {
+  0%, 100% { box-shadow: 0 0 30px rgba(0,200,255,0.3), inset 0 0 30px rgba(0,200,255,0.1); }
+  50% { box-shadow: 0 0 40px rgba(0,200,255,0.5), inset 0 0 40px rgba(0,200,255,0.15); }
 }
 
 /* Speed lines overlay */
@@ -469,25 +498,26 @@ body {
   position: fixed;
   top: 40%;
   left: 50%;
-  transform: translateX(-50%);
+  transform: translateX(-50%) scale(1);
   font-family: 'Orbitron', sans-serif;
-  font-size: 3rem;
+  font-size: 3.5rem;
   font-weight: 900;
-  color: var(--neon-red);
-  text-shadow: 0 0 30px rgba(255,34,51,0.8);
+  color: #ff2233;
+  text-shadow: 0 0 40px rgba(255,34,51,1), 0 0 80px rgba(255,34,51,0.6), 0 0 120px rgba(255,0,0,0.4);
   opacity: 0;
   pointer-events: none;
   z-index: 60;
   transition: opacity 0.3s;
-  letter-spacing: 0.1em;
-  animation: wrongWayPulse 0.5s ease-in-out infinite;
+  letter-spacing: 0.15em;
+  animation: wrongWayPulse 0.6s ease-in-out infinite;
+  filter: drop-shadow(0 0 20px rgba(255,34,51,0.8));
 }
 
 #wrong-way.show { opacity: 1; }
 
 @keyframes wrongWayPulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
+  0%, 100% { transform: scale(1) translateX(-50%); text-shadow: 0 0 30px rgba(255,34,51,0.8); }
+  50% { transform: scale(1.1) translateX(-50%); text-shadow: 0 0 60px rgba(255,34,51,1); }
 }
 
 /* ─── COUNTDOWN ─── */
@@ -1039,33 +1069,51 @@ function buildScene() {
   const skyMesh = new THREE.Mesh(skyGeo, skyMat);
   scene.add(skyMesh);
 
-  /* Fog */
-  scene.fog = new THREE.Fog(0x0a0a1a, 200, 600);
+  /* Fog - enhanced for better depth perception */
+  scene.fog = new THREE.Fog(0x0a0a1a, 150, 700);
 
-  /* Ambient */
-  const ambient = new THREE.AmbientLight(0x334466, 0.8);
+  /* Ambient - more dynamic lighting */
+  const ambient = new THREE.AmbientLight(0x4477aa, 1.0);
   scene.add(ambient);
 
-  /* Sun / main directional */
-  const sun = new THREE.DirectionalLight(0xfff0e0, 1.4);
-  sun.position.set(80, 120, 60);
+  /* Sun / main directional - enhanced shadows */
+  const sun = new THREE.DirectionalLight(0xffd9b3, 1.6);
+  sun.position.set(100, 150, 80);
   sun.castShadow = true;
-  sun.shadow.mapSize.set(2048, 2048);
-  sun.shadow.camera.near = 1;
-  sun.shadow.camera.far  = 500;
-  sun.shadow.camera.left = sun.shadow.camera.bottom = -200;
-  sun.shadow.camera.right = sun.shadow.camera.top = 200;
+  sun.shadow.mapSize.set(4096, 4096);
+  sun.shadow.camera.near = 0.5;
+  sun.shadow.camera.far  = 600;
+  sun.shadow.camera.left = sun.shadow.camera.bottom = -250;
+  sun.shadow.camera.right = sun.shadow.camera.top = 250;
+  sun.shadow.bias = -0.001;
   scene.add(sun);
 
-  /* Fill light */
-  const fill = new THREE.DirectionalLight(0x4466aa, 0.3);
-  fill.position.set(-80, 40, -60);
+  /* Fill light - more prominent */
+  const fill = new THREE.DirectionalLight(0x6688dd, 0.5);
+  fill.position.set(-100, 60, -80);
   scene.add(fill);
 
-  /* Stars */
+  /* Rim light - adds dimension */
+  const rimLight = new THREE.DirectionalLight(0xff8866, 0.4);
+  rimLight.position.set(0, 80, -150);
+  scene.add(rimLight);
+
+  /* Point lights around track for more atmosphere */
+  const trackLights = [
+    { pos: [-100, 30, 0], color: 0x00ccff },
+    { pos: [100, 30, -100], color: 0xff6600 },
+    { pos: [0, 30, 100], color: 0x00ff88 }
+  ];
+  trackLights.forEach(light => {
+    const pl = new THREE.PointLight(light.color, 0.6, 300);
+    pl.position.set(...light.pos);
+    scene.add(pl);
+  });
+
+  /* Stars - more for better night atmosphere */
   const starGeo = new THREE.BufferGeometry();
   const starVerts = [];
-  for (let i = 0; i < 3000; i++) {
+  for (let i = 0; i < 5000; i++) {
     const theta = Math.random() * Math.PI * 2;
     const phi   = Math.acos(2 * Math.random() - 1);
     const r = 900 + Math.random() * 400;
@@ -1076,15 +1124,29 @@ function buildScene() {
     );
   }
   starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starVerts, 3));
-  scene.add(new THREE.Points(starGeo, new THREE.PointsMaterial({ color: 0xffffff, size: 1.2, sizeAttenuation: true })));
+  const starMat = new THREE.PointsMaterial({
+    color: 0xffffff,
+    size: 1.8,
+    sizeAttenuation: true,
+    transparent: true,
+    opacity: 0.9,
+    sizeRange: [0.5, 3]
+  });
+  scene.add(new THREE.Points(starGeo, starMat));
 
-  /* Ground plane */
+  /* Ground plane - improved material */
   const groundGeo = new THREE.PlaneGeometry(900, 900, 60, 60);
-  const groundMat = new THREE.MeshLambertMaterial({ color: 0x1a3d0a });
+  const groundMat = new THREE.MeshStandardMaterial({
+    color: 0x0d260a,
+    roughness: 0.85,
+    metalness: 0.0,
+    envMapIntensity: 0.3
+  });
   const ground = new THREE.Mesh(groundGeo, groundMat);
   ground.rotation.x = -Math.PI / 2;
   ground.position.y = -0.05;
   ground.receiveShadow = true;
+  ground.castShadow = false;
   scene.add(ground);
 
   /* Track surface */
@@ -1158,7 +1220,13 @@ function buildTrackMesh() {
   tarmacTex.wrapS = tarmacTex.wrapT = THREE.RepeatWrapping;
   tarmacTex.repeat.set(1, 6);
 
-  const mat = new THREE.MeshLambertMaterial({ map: tarmacTex });
+  const mat = new THREE.MeshStandardMaterial({
+    map: tarmacTex,
+    roughness: 0.65,
+    metalness: 0.05,
+    envMapIntensity: 0.3,
+    side: THREE.DoubleSide
+  });
   const mesh = new THREE.Mesh(geo, mat);
   mesh.receiveShadow = true;
   mesh.castShadow    = false;
@@ -1365,10 +1433,10 @@ function addPitSign(x, z) {
 function buildCar(color, isPlayer) {
   const group = new THREE.Group();
 
-  const bodyMat   = new THREE.MeshLambertMaterial({ color });
-  const darkMat   = new THREE.MeshLambertMaterial({ color: 0x111111 });
-  const chromeMat = new THREE.MeshLambertMaterial({ color: 0xaaaaaa });
-  const glassMat  = new THREE.MeshLambertMaterial({ color: 0x88ccff, transparent: true, opacity: 0.5 });
+  const bodyMat   = new THREE.MeshStandardMaterial({ color, roughness: 0.4, metalness: 0.6, envMapIntensity: 0.5 });
+  const darkMat   = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.7, metalness: 0.4 });
+  const chromeMat = new THREE.MeshStandardMaterial({ color: 0xd0d0d0, roughness: 0.1, metalness: 0.95, envMapIntensity: 1.0 });
+  const glassMat  = new THREE.MeshStandardMaterial({ color: 0x88ccff, transparent: true, opacity: 0.6, roughness: 0.1, metalness: 0.0 });
   const tireMat   = new THREE.MeshLambertMaterial({ color: 0x222222 });
   const rimMat    = new THREE.MeshLambertMaterial({ color: 0xdddddd });
 
@@ -1698,14 +1766,19 @@ function updatePlayer(dt) {
         finishRace();
       }
     }
-  } else if (Player.lastT > Player.t + 0.05) { // Player went backwards significantly
-    // Wrong way - only trigger if moving backwards by more than 10% of track
-    if (!State.wrongWay) {
-      if (sounds.wrong) { sounds.wrong.currentTime = 0; sounds.wrong.play(); }
-    }
-    State.wrongWay = true;
   } else {
-    State.wrongWay = false;
+    // Check if moving backwards (but not crossing finish line)
+    let diff = Player.lastT - Player.t;
+    // If difference is large but lastT is near end and t is near start, it's a forward lap cross
+    if (diff > 0.05 && !(Player.lastT > 0.9 && Player.t < 0.1)) {
+      // Truly moving backwards
+      if (!State.wrongWay) {
+        if (sounds.wrong) { sounds.wrong.currentTime = 0; sounds.wrong.play(); }
+      }
+      State.wrongWay = true;
+    } else {
+      State.wrongWay = false;
+    }
   }
   Player.lastT = Player.t;
 
