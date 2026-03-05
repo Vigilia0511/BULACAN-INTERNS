@@ -521,42 +521,92 @@ body {
 #mobile-controls {
   display: none;
   position: fixed;
-  bottom: 2rem;
-  left: 50%;
-  transform: translateX(-50%);
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 200px;
   z-index: 55;
+  pointer-events: none;
 }
 
 @media (max-width: 768px), (pointer: coarse) {
   #mobile-controls {
-    display: grid;
-    grid-template-columns: repeat(3, 60px);
-    gap: 8px;
+    display: block;
   }
 }
 
-.mobile-btn {
-  width: 60px;
-  height: 60px;
+#left-controls {
+  position: absolute;
+  left: 20px;
+  bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  pointer-events: all;
+}
+
+#right-controls {
+  position: absolute;
+  right: 20px;
+  bottom: 20px;
+  pointer-events: all;
+}
+
+.accelerate-btn, .brake-btn {
+  width: 80px;
+  height: 80px;
   background: rgba(255,255,255,0.1);
-  border: 1px solid rgba(255,255,255,0.2);
-  border-radius: 12px;
+  border: 2px solid rgba(255,255,255,0.2);
+  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.5rem;
+  font-size: 2rem;
   color: rgba(255,255,255,0.7);
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
   touch-action: none;
+  transition: all 0.1s ease;
 }
 
-.mobile-btn:active, .mobile-btn.pressed {
-  background: rgba(255,34,51,0.3);
-  border-color: rgba(255,34,51,0.6);
+.accelerate-btn:active, .accelerate-btn.pressed {
+  background: rgba(34, 197, 94, 0.3);
+  border-color: rgba(34, 197, 94, 0.6);
+  transform: scale(0.95);
 }
 
-.mobile-btn-center { grid-column: 2; }
+.brake-btn:active, .brake-btn.pressed {
+  background: rgba(239, 68, 68, 0.3);
+  border-color: rgba(239, 68, 68, 0.6);
+  transform: scale(0.95);
+}
+
+#steer-joystick {
+  position: relative;
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.1);
+  border: 2px solid rgba(255,255,255,0.2);
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#steer-thumb {
+  position: absolute;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(255,34,51,0.8);
+  border: 2px solid rgba(255,34,51,0.9);
+  left: 40px;
+  top: 40px;
+  transition: all 0.1s ease;
+  pointer-events: none;
+}
   </style>
 </head>
 <body>
@@ -670,12 +720,18 @@ body {
 </div>
 
 <div id="mobile-controls">
-  <div></div>
-  <div class="mobile-btn mobile-btn-center" id="mb-up" data-key="ArrowUp">▲</div>
-  <div></div>
-  <div class="mobile-btn" id="mb-left" data-key="ArrowLeft">◀</div>
-  <div class="mobile-btn" id="mb-down" data-key="ArrowDown">▼</div>
-  <div class="mobile-btn" id="mb-right" data-key="ArrowRight">▶</div>
+  <!-- Left side: Accelerate and Brake -->
+  <div id="left-controls">
+    <div class="accelerate-btn" id="btn-accelerate">▲</div>
+    <div class="brake-btn" id="btn-brake">▼</div>
+  </div>
+
+  <!-- Right side: Steering Joystick -->
+  <div id="right-controls">
+    <div id="steer-joystick">
+      <div id="steer-thumb"></div>
+    </div>
+  </div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -2090,19 +2146,107 @@ function togglePause() {
   }
 }
 
-// Mobile controls
-document.querySelectorAll('.mobile-btn').forEach(btn => {
-  const key = btn.dataset.key;
-  const k   = keyMap[key];
-  btn.addEventListener('touchstart', e => { e.preventDefault(); if(k) Keys[k] = true; btn.classList.add('pressed'); }, { passive: false });
-  btn.addEventListener('touchend',   e => { e.preventDefault(); if(k) Keys[k] = false; btn.classList.remove('pressed'); }, { passive: false });
-  btn.addEventListener('mousedown',  () => { if(k) Keys[k] = true; });
-  btn.addEventListener('mouseup',    () => { if(k) Keys[k] = false; });
-});
+// Mobile controls setup
+function setupMobileControls() {
+  const isMobile = window.innerWidth <= 768 || 'ontouchstart' in window;
 
-// global click sound for UI widgets
+  if (!isMobile) return;
+
+  // Accelerate button
+  const accelerateBtn = document.getElementById('btn-accelerate');
+  accelerateBtn.addEventListener('touchstart', e => {
+    e.preventDefault();
+    Keys['KeyW'] = true;
+    Keys['ArrowUp'] = true;
+    accelerateBtn.classList.add('pressed');
+  }, { passive: false });
+
+  accelerateBtn.addEventListener('touchend', e => {
+    e.preventDefault();
+    Keys['KeyW'] = false;
+    Keys['ArrowUp'] = false;
+    accelerateBtn.classList.remove('pressed');
+  }, { passive: false });
+
+  // Brake button
+  const brakeBtn = document.getElementById('btn-brake');
+  brakeBtn.addEventListener('touchstart', e => {
+    e.preventDefault();
+    Keys['KeyS'] = true;
+    Keys['ArrowDown'] = true;
+    brakeBtn.classList.add('pressed');
+  }, { passive: false });
+
+  brakeBtn.addEventListener('touchend', e => {
+    e.preventDefault();
+    Keys['KeyS'] = false;
+    Keys['ArrowDown'] = false;
+    brakeBtn.classList.remove('pressed');
+  }, { passive: false });
+
+  // Steering joystick
+  const joystick = document.getElementById('steer-joystick');
+  const thumb = document.getElementById('steer-thumb');
+  let joystickActive = false;
+  let joystickCenterX = 60;
+  let joystickCenterY = 60;
+  let maxDistance = 40;
+
+  function updateJoystickVisual(x, y) {
+    const dx = x - joystickCenterX;
+    const dy = y - joystickCenterY;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    const clampedDistance = Math.min(distance, maxDistance);
+    const angle = Math.atan2(dy, dx);
+
+    const clampedX = joystickCenterX + Math.cos(angle) * clampedDistance;
+    const clampedY = joystickCenterY + Math.sin(angle) * clampedDistance;
+
+    thumb.style.left = `${clampedX - 20}px`;
+    thumb.style.top = `${clampedY - 20}px`;
+
+    // Update steering based on horizontal position
+    const steerAmount = (clampedX - joystickCenterX) / maxDistance;
+    Player.steer = steerAmount * 0.8; // Adjust sensitivity
+  }
+
+  joystick.addEventListener('touchstart', e => {
+    e.preventDefault();
+    joystickActive = true;
+    const rect = joystick.getBoundingClientRect();
+    joystickCenterX = rect.width / 2;
+    joystickCenterY = rect.height / 2;
+    maxDistance = joystickCenterX - 20;
+
+    // Reset thumb to center
+    thumb.style.left = `${joystickCenterX - 20}px`;
+    thumb.style.top = `${joystickCenterY - 20}px`;
+  }, { passive: false });
+
+  joystick.addEventListener('touchmove', e => {
+    if (!joystickActive) return;
+    e.preventDefault();
+
+    const touch = e.touches[0];
+    const rect = joystick.getBoundingClientRect();
+    const x = touch.clientX - rect.left;
+    const y = touch.clientY - rect.top;
+
+    updateJoystickVisual(x, y);
+  }, { passive: false });
+
+  joystick.addEventListener('touchend', e => {
+    e.preventDefault();
+    joystickActive = false;
+    thumb.style.left = `${joystickCenterX - 20}px`;
+    thumb.style.top = `${joystickCenterY - 20}px`;
+    Player.steer = 0;
+  }, { passive: false });
+}
+
+// Mobile controls are now set up in init()
 document.body.addEventListener('click', e => {
-  if (e.target.closest('.btn, .mobile-btn')) {
+  if (e.target.closest('.btn, .accelerate-btn, .brake-btn')) {
     playClickSound();
   }
 });
@@ -2170,6 +2314,7 @@ function init() {
   Player.init();
   initAI();
   initParticles();
+  setupMobileControls();
 
   // Position camera initially on player
   const startPt = trackCurve.getPointAt(0);
