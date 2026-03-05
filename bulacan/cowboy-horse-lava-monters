@@ -264,50 +264,7 @@ const WEAPONS={
     explosive:false,grenadeMode:false,molotovMode:false,flamethrower:true,
     draw:(c,angle,flip)=>drawFlamethrower(c,angle,flip)},
 };
-// ── ADD: Potion Shop Data ─────────────────────────────────
-const POTION_SHOP = [
-  {
-    id: "health",
-    name: "Health Brew",
-    icon: "🧪",
-    color: "#e03040",
-    glowColor: "#ff6080",
-    desc: "Restore 40 HP instantly",
-    cost: 2,
-    effect: () => { player.hp = Math.min(player.maxHp, player.hp + 40); }
-  },
-  {
-    id: "speed",
-    name: "Swift Tonic",
-    icon: "💨",
-    color: "#30c0e0",
-    glowColor: "#80e8ff",
-    desc: "+50% move speed for 20s",
-    cost: 3,
-    effect: () => { potions.speed++; }
-  },
-  {
-    id: "strength",
-    name: "Rage Elixir",
-    icon: "🔥",
-    color: "#e06020",
-    glowColor: "#ff9040",
-    desc: "Double damage for 15s",
-    cost: 3,
-    effect: () => { potions.strength++; }
-  },
-  {
-    id: "shield",
-    name: "Iron Skin",
-    icon: "🛡️",
-    color: "#a0a0ff",
-    glowColor: "#c0c0ff",
-    desc: "Absorb next 3 hits",
-    cost: 4,
-    effect: () => { potions.shield++; }
-  },
-];
-// ────────────────────────────────────────────────────────
+
 let currentWeapon='pistol';
 let coins=0;
 let fireRateTimer=0;
@@ -945,13 +902,6 @@ function updateShoeHUD(){const hud=document.getElementById("shoeHUD");if(lavaShi
 // ============================================================
 // INPUT
 // ============================================================
-function buyPotion(idx) {
-  const p = POTION_SHOP[idx];
-  if (!p || goldCoins < p.cost) return;
-  goldCoins -= p.cost;
-  potions[p.id] = (potions[p.id] || 0) + 1;
-  if (typeof p.effect === "function") p.effect();
-}
 document.addEventListener("keydown",e=>{
   keys[e.code]=true;
   if(e.code==="KeyE"&&horse.nearby&&!gameOver&&!storeOpen){riding=!riding;player.speed=riding?9:5;player.jumpPower=riding?-16:-13;playMount(riding);}
@@ -961,28 +911,6 @@ document.addEventListener("keydown",e=>{
   if((e.code==="KeyT"||e.code==="Enter")&&isStoreLevel()&&!storeOpen&&!gameOver){openStore();}
   const wKeys={"Digit1":"pistol","Digit2":"shotgun","Digit3":"gatling","Digit4":"sniper","Digit5":"bazooka","Digit6":"grenade","Digit7":"molotov","Digit8":"flamethrower"};
   if(wKeys[e.code]&&WEAPONS[wKeys[e.code]].owned)equipWeapon(wKeys[e.code]);
-  if (isVillage) {
-    if (e.key === "1") buyPotion(0);
-    if (e.key === "2") buyPotion(1);
-    if (e.key === "3") buyPotion(2);
-    if (e.key === "4") buyPotion(3);
-    if (e.key === "q") usePotion("speed");
-    if (e.key === "w") usePotion("strength");
-    if (e.key === "e") usePotion("shield");
-    if (e.key === "h") usePotion("health");
-    if (e.key === "Enter") {
-      isVillage = false;
-      villageVisited = true;
-      // advance to next level / continue as normal
-    }
-    e.preventDefault();
-    return; // block normal movement in village
-  }
-  // Potion use in normal gameplay:
-  if (e.key === "q") usePotion("speed");
-  if (e.key === "w") usePotion("strength");
-  if (e.key === "e") usePotion("shield");
-  if (e.key === "h") usePotion("health");
 });
 document.addEventListener("keyup",e=>keys[e.code]=false);
 
@@ -1052,8 +980,7 @@ function doExplosion(x,y,radius,damage,isMolotov){
   if(!godMode){const pdx=(player.x+player.w/2)-x,pdy=(player.y+player.h/2)-y;if(Math.sqrt(pdx*pdx+pdy*pdy)<radius*0.5)triggerGameOver();}
   if(isMolotov){firePatches.push({x:x-50,y:GY-16,w:100,h:16,life:350,maxLife:350});}
 }
-let timeOfDay = 0; // 0-1 cycle, 0=dawn, 0.25=noon, 0.5=dusk, 0.75=midnight
-const DAY_CYCLE_SPEED = 0.0002; // full cycle ~83 seconds
+
 // Screen shake
 let screenShake=0;
 
@@ -1065,7 +992,6 @@ setupMobileControls();
 
 function update(){
   tick++;if(storeOpen)return;
-  timeOfDay = (timeOfDay + DAY_CYCLE_SPEED) % 1;
   if(screenShake>0)screenShake*=0.8;
   if(gameOver){particles.forEach(p=>{p.x+=p.dx;p.y+=p.dy;p.dy+=0.15;p.life-=p.decay;});particles=particles.filter(p=>p.life>0);explosionEffects.forEach(e=>e.life-=e.decay);explosionEffects=explosionEffects.filter(e=>e.life>0);return;}
 
@@ -1212,18 +1138,7 @@ function update(){
       if(b.explosive){doExplosion(b.x,b.y,120,b.damage,false);bullets.splice(bi,1);}
       else{boss.hp-=b.damage;boss.hitFlash=12;spawnParticles(b.x,b.y,"#ff4444",5);bullets.splice(bi,1);playBossHit();updateBossBar();
         if(boss.hp<=boss.maxHp/2&&boss.phase===0){boss.phase=1;boss.speed*=1.5;boss.shootInterval=Math.max(35,boss.shootInterval-20);spawnExplosionEffect(boss.x+boss.w/2,boss.y+boss.h/2,80,"#ff0000","#ff4400");}
-        if(boss.hp<=0){
-  boss.alive=false;
-  spawnExplosionEffect(boss.x+boss.w/2,boss.y+boss.h/2,130,"#ff4444","#ffaa00");
-  document.getElementById("bossHUD").style.display="none";
-  playBossDeath();
-  addCoins(boss.x+boss.w/2,boss.y,20);
-  // ── ADD: trigger village ──────────────────────
-  goldCoins += 3 + Math.floor(level * 0.5);
-  isVillage = true;
-  villageVisited = false;
-  // ─────────────────────────────────────────────
-}
+        if(boss.hp<=0){boss.alive=false;spawnExplosionEffect(boss.x+boss.w/2,boss.y+boss.h/2,130,"#ff4444","#ffaa00");document.getElementById("bossHUD").style.display="none";playBossDeath();addCoins(boss.x+boss.w/2,boss.y,20);}
       }
     }
   });
@@ -1250,27 +1165,9 @@ function update(){
   particles=particles.filter(p=>p.life>0);
 
   const bossCleared=!isBossLevel()||(boss&&!boss.alive);
-  // Village trigger after boss levels (e.g., 6, 11, etc.)
-  if (bossCleared && isBossLevel() && !isVillage && !villageVisited && (level === 6 || level === 11 || level % 5 === 1)) {
-    isVillage = true;
-    villageVisited = false;
-    goldCoins += 3 + Math.floor(level * 0.5);
-  }
   if(player.x+player.w>=canvas.width-10&&bossCleared){
-    if(isVillage && !villageVisited){
-      // Enter village after boss
-      isVillage = true;
-      villageVisited = false;
-      goldCoins += 3 + Math.floor(level * 0.5);
-      player.x = canvas.width/2 - player.w/2;
-      player.dx = 0;
-    } else if(riding){
-      level++;
-      setupLevel(true);
-      villageVisited = false;
-    } else {
-      player.x=canvas.width-player.w-12;player.dx=-4;if(mountWarnTimer<=0){mountWarnTimer=120;const mw=document.getElementById("mountWarning");mw.classList.add("show");setTimeout(()=>mw.classList.remove("show"),2000);}
-    }
+    if(riding){level++;setupLevel(true);}
+    else{player.x=canvas.width-player.w-12;player.dx=-4;if(mountWarnTimer<=0){mountWarnTimer=120;const mw=document.getElementById("mountWarning");mw.classList.add("show");setTimeout(()=>mw.classList.remove("show"),2000);}}
   }
   if(mountWarnTimer>0)mountWarnTimer--;
 
@@ -1289,173 +1186,7 @@ canvas.addEventListener("mousemove",e=>{
 // Fix: mousedown sets key for flamethrower
 canvas.addEventListener("mousedown",()=>{keys["MouseFire"]=true;});
 canvas.addEventListener("mouseup",()=>{keys["MouseFire"]=false;});
-let isVillage = false;        // are we in village mode?
-let villageVisited = false;   // prevent re-entry on same level
-let potions = {               // player's potion inventory
-  speed: 0,
-  strength: 0,
-  shield: 0,
-  health: 0,
-};
-let goldCoins = 0;            // village currency (award on boss kill)
-let activeEffects = {
-  speed: 0,      // ticks remaining
-  strength: 0,
-  shield: 0,     // hits remaining
-};
-function drawVillage() {
-  if (!isVillage) return;
 
-  // Dim overlay
-  ctx.fillStyle = "rgba(0,0,0,0.55)";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  const panelW = Math.min(520, canvas.width - 40);
-  const panelH = 320;
-  const px = canvas.width / 2 - panelW / 2;
-  const py = canvas.height / 2 - panelH / 2;
-
-  // Panel background
-  ctx.save();
-  ctx.shadowColor = "#ffd700";
-  ctx.shadowBlur = 30;
-  ctx.fillStyle = "#1a0e05";
-  ctx.beginPath();
-  ctx.roundRect(px, py, panelW, panelH, 12);
-  ctx.fill();
-  ctx.shadowBlur = 0;
-  ctx.strokeStyle = "#8b6914";
-  ctx.lineWidth = 2;
-  ctx.stroke();
-  ctx.restore();
-
-  // Village banner
-  ctx.save();
-  ctx.shadowColor = "#ffd700";
-  ctx.shadowBlur = 16;
-  ctx.fillStyle = "#ffd700";
-  ctx.font = "bold 22px Georgia";
-  ctx.textAlign = "center";
-  ctx.fillText("🏘️ VILLAGE MARKET", canvas.width / 2, py + 36);
-  ctx.shadowBlur = 0;
-  ctx.fillStyle = "#c8a060";
-  ctx.font = "13px Georgia";
-  ctx.fillText(`You have  💰 ${goldCoins} gold`, canvas.width / 2, py + 58);
-  ctx.restore();
-
-  // Divider
-  ctx.strokeStyle = "#5a3a18";
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(px + 20, py + 68);
-  ctx.lineTo(px + panelW - 20, py + 68);
-  ctx.stroke();
-
-  // Potion cards
-  const cardW = (panelW - 60) / 4;
-  const cardH = 170;
-  const cardY = py + 82;
-
-  POTION_SHOP.forEach((p, i) => {
-    const cx = px + 20 + i * (cardW + 13);
-    const canAfford = goldCoins >= p.cost;
-
-    // Card bg
-    ctx.save();
-    if (canAfford) {
-      ctx.shadowColor = p.glowColor;
-      ctx.shadowBlur = 8;
-    }
-    ctx.fillStyle = canAfford ? "#2a1a08" : "#161008";
-    ctx.beginPath();
-    ctx.roundRect(cx, cardY, cardW, cardH, 8);
-    ctx.fill();
-    ctx.strokeStyle = canAfford ? p.color : "#3a2a10";
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
-    ctx.restore();
-
-    // Icon
-    ctx.font = "28px serif";
-    ctx.textAlign = "center";
-    ctx.fillText(p.icon, cx + cardW / 2, cardY + 38);
-
-    // Name
-    ctx.fillStyle = canAfford ? "#ffeebb" : "#665544";
-    ctx.font = `bold 11px Georgia`;
-    ctx.fillText(p.name, cx + cardW / 2, cardY + 58);
-
-    // Desc (word wrap simple)
-    ctx.fillStyle = canAfford ? "#c8a878" : "#443322";
-    ctx.font = "10px Georgia";
-    const words = p.desc.split(" ");
-    let line = "", lineY = cardY + 74;
-    for (const w of words) {
-      const test = line + w + " ";
-      if (ctx.measureText(test).width > cardW - 8 && line) {
-        ctx.fillText(line.trim(), cx + cardW / 2, lineY);
-        line = w + " "; lineY += 14;
-      } else { line = test; }
-    }
-    ctx.fillText(line.trim(), cx + cardW / 2, lineY);
-
-    // Cost badge
-    ctx.fillStyle = canAfford ? "#ffd700" : "#554422";
-    ctx.font = "bold 12px Georgia";
-    ctx.fillText(`💰 ${p.cost}`, cx + cardW / 2, cardY + cardH - 32);
-
-    // Buy button
-    const btnY = cardY + cardH - 20;
-    ctx.fillStyle = canAfford ? p.color : "#2a1a08";
-    ctx.beginPath();
-    ctx.roundRect(cx + 6, btnY - 14, cardW - 12, 22, 4);
-    ctx.fill();
-    ctx.fillStyle = canAfford ? "#fff" : "#443322";
-    ctx.font = "bold 11px Georgia";
-    ctx.fillText(`[${i + 1}] Buy`, cx + cardW / 2, btnY + 3);
-  });
-
-  // Leave prompt
-  ctx.fillStyle = `rgba(200,180,100,${0.6 + Math.sin(tick * 0.08) * 0.3})`;
-  ctx.font = "bold 13px Georgia";
-  ctx.textAlign = "center";
-  ctx.fillText("[ENTER] Leave Village →", canvas.width / 2, py + panelH + 24);
-  ctx.textAlign = "left";
-}
-// In your update/tick function:
-function updateActiveEffects() {
-  if (activeEffects.speed > 0) {
-    activeEffects.speed--;
-    player.speed = BASE_SPEED * 1.5; // replace with your speed var
-  } else {
-    player.speed = BASE_SPEED;
-  }
-  if (activeEffects.strength > 0) activeEffects.strength--;
-}
-
-// When player uses a potion (press Q to use, for example):
-function usePotion(type) {
-  if (potions[type] <= 0) return;
-  potions[type]--;
-  if (type === "speed")    activeEffects.speed    = 60 * 20; // 20 seconds
-  if (type === "strength") activeEffects.strength = 60 * 15;
-  if (type === "health")   player.hp = Math.min(player.maxHp, player.hp + 40);
-  if (type === "shield")   activeEffects.shield   = 3;
-}
-
-// In your damage-taking code:
-function takeDamage(amt) {
-  if (activeEffects.shield > 0) {
-    activeEffects.shield--;
-    return; // absorb hit
-  }
-  player.hp -= amt;
-}
-
-// In your attack/deal-damage code:
-function dealDamage(base) {
-  return activeEffects.strength > 0 ? base * 2 : base;
-}
 function drawWorld(){
   // Screen shake transform
   const sx=screenShake>0.5?rnd(-screenShake,screenShake):0;
@@ -1469,28 +1200,6 @@ function drawWorld(){
   for(let i=0;i<canvas.width;i+=18){const h=6+Math.sin(i*0.3+tick*0.02)*3;ctx.fillStyle=`hsl(${130+Math.sin(i)*10},50%,${25+Math.sin(i*0.5)*8}%)`;ctx.beginPath();ctx.moveTo(i,GY);ctx.lineTo(i+6,GY-h);ctx.lineTo(i+12,GY);ctx.fill();}
 
   if(godMode&&tick%60<30){ctx.save();ctx.strokeStyle="rgba(0,255,136,0.3)";ctx.lineWidth=4;ctx.strokeRect(2,2,canvas.width-4,canvas.height-4);ctx.restore();}
-
-  // Draw potion inventory HUD (top right)
-  ctx.save();
-  const potHUDx = canvas.width - 180, potHUDy = 22;
-  ctx.globalAlpha = 0.92;
-  ctx.fillStyle = "#1a1a2a";
-  ctx.roundRect(potHUDx, potHUDy, 160, 54, 10);
-  ctx.fill();
-  ctx.globalAlpha = 1;
-  ctx.font = "bold 13px Georgia";
-  ctx.fillStyle = "#ffd700";
-  ctx.fillText("Potions", potHUDx + 80, potHUDy + 18);
-  const potionsList = ["health", "speed", "strength", "shield"];
-  const icons = {health:"🧪",speed:"💨",strength:"🔥",shield:"🛡️"};
-  potionsList.forEach((pid, i) => {
-    ctx.font = "20px serif";
-    ctx.fillText(icons[pid], potHUDx + 30 + i*32, potHUDy + 40);
-    ctx.font = "bold 13px Georgia";
-    ctx.fillStyle = potions[pid] > 0 ? "#fff" : "#888";
-    ctx.fillText("x" + (potions[pid]||0), potHUDx + 44 + i*32, potHUDy + 44);
-  });
-  ctx.restore();
 
   if(isStoreLevel()){
     const sx2=canvas.width/2-60;const sy2=GY-130;
@@ -1508,34 +1217,6 @@ function drawWorld(){
     if(Math.abs(player.x-(sx2+60))<120){
       ctx.save();ctx.fillStyle=`rgba(255,220,80,${0.7+Math.sin(tick*0.1)*0.2})`;ctx.font="bold 14px Georgia";ctx.textAlign="center";ctx.fillText("[T] Enter Shop",sx2+60,sy2-22);ctx.restore();
     }
-  }
-  // Draw village house/platform if in village mode
-  if(isVillage){
-    const vx=canvas.width/2-90, vy=GY-160;
-    ctx.save();
-    ctx.fillStyle="#a97c50";
-    ctx.fillRect(vx, vy+80, 180, 18); // platform
-    ctx.fillStyle="#c8a060";
-    ctx.fillRect(vx+40, vy, 100, 80); // house body
-    ctx.fillStyle="#8b6914";
-    ctx.beginPath();
-    ctx.moveTo(vx+30, vy);
-    ctx.lineTo(vx+90, vy-40);
-    ctx.lineTo(vx+150, vy);
-    ctx.closePath();
-    ctx.fill(); // roof
-    ctx.fillStyle="#fff";
-    ctx.fillRect(vx+80, vy+40, 20, 30); // door
-    ctx.fillStyle="#e0c080";
-    ctx.fillRect(vx+55, vy+20, 18, 18); // window left
-    ctx.fillRect(vx+107, vy+20, 18, 18); // window right
-    ctx.restore();
-    ctx.save();
-    ctx.font = "bold 18px Georgia";
-    ctx.fillStyle = "#ffd700";
-    ctx.textAlign = "center";
-    ctx.fillText("🏘️ Village House", vx+90, vy-48);
-    ctx.restore();
   }
 
   const bossBlocking=isBossLevel()&&boss&&boss.alive;const horseBlocking=!riding&&!bossBlocking;
@@ -2391,33 +2072,10 @@ function drawWeaponHUD(){
   });
   if(owned.length>1){ctx.fillStyle="rgba(255,255,255,0.35)";ctx.font="11px Georgia";ctx.textAlign="right";ctx.fillText("Right-click: next weapon",canvas.width-18,canvas.height-64);ctx.textAlign="left";}
 }
-// ── ADD: Potion HUD ───────────────────────────────────────
-function drawPotionHUD(){
-  ctx.font="bold 14px Georgia";
-  let hudY=160; // starts below your existing health/weapon UI
-  if(activeEffects.speed>0){
-    ctx.fillStyle="#80e8ff";
-    ctx.fillText(`💨 ${Math.ceil(activeEffects.speed/60)}s`,10,hudY);hudY+=18;
-  }
-  if(activeEffects.strength>0){
-    ctx.fillStyle="#ff9040";
-    ctx.fillText(`🔥 ${Math.ceil(activeEffects.strength/60)}s`,10,hudY);hudY+=18;
-  }
-  if(activeEffects.shield>0){
-    ctx.fillStyle="#c0c0ff";
-    ctx.fillText(`🛡 x${activeEffects.shield}`,10,hudY);
-  }
-  // Potion inventory bar at bottom
-  const isMobile=window.innerWidth<=768;
-  if(!isMobile){
-    ctx.fillStyle="#ffd700";ctx.font="13px Georgia";
-    ctx.fillText(`[Q]💨×${potions.speed}  [E]🔥×${potions.strength}  [R]🛡×${potions.shield}`,10,canvas.height-20);
-  }
-}
-// ─────────────────────────────────────────────────────────
+
 function draw(){
   updateGY();
-  drawWorld();stones.forEach(drawStone);drawLava();firePatches.forEach(drawFirePatch);drawExplosionEffects();coinPickups.forEach(drawCoin);horseshoes.forEach(drawHorseshoe);monsters.forEach(drawMonster);drawBoss();drawBossProjectiles();drawBullets();drawHorse();drawPlayer();drawLavaShield();drawThrowPreview();drawParticles();drawWeaponHUD();drawVillage();;
+  drawWorld();stones.forEach(drawStone);drawLava();firePatches.forEach(drawFirePatch);drawExplosionEffects();coinPickups.forEach(drawCoin);horseshoes.forEach(drawHorseshoe);monsters.forEach(drawMonster);drawBoss();drawBossProjectiles();drawBullets();drawHorse();drawPlayer();drawLavaShield();drawThrowPreview();drawParticles();drawWeaponHUD();
 }
 
 function loop(){update();draw();requestAnimationFrame(loop);}
