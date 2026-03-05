@@ -750,7 +750,7 @@ const TRACK_RADIUS = 120;     // outer radius of oval base
 const TRACK_WIDTH  = 14;
 const CAR_LENGTH   = 4.4;
 const CAR_WIDTH    = 2.2;
-const MAX_SPEED    = 60;      // km/h display units (actual = world units/s × scale)
+const MAX_SPEED    = 150;      // km/h display units (actual = world units/s × scale)
 const WORLD_SCALE  = 0.5;     // world units per "km/h"
 
 /* ─── TRACK PATH (Bezier control points for a figure-8-ish circuit) ─── */
@@ -1612,7 +1612,7 @@ function updatePlayer(dt) {
   if (State.phase !== 'racing') return;
 
   const maxSpeed  = MAX_SPEED * WORLD_SCALE / 3.6;  // m/s
-  const accel     = 14 * WORLD_SCALE;
+  const accel     = 20 * WORLD_SCALE;
   const brakeAcc  = 22 * WORLD_SCALE;
   const friction  = 6  * WORLD_SCALE;
   const maxSteer  = 1.6;
@@ -1698,7 +1698,7 @@ function updatePlayer(dt) {
         finishRace();
       }
     }
-  } else if (Player.lastT > Player.t + 0.1) { // Player went backwards significantly
+  } else if (Player.lastT > Player.t + 0.05) { // Player went backwards significantly
     // Wrong way - only trigger if moving backwards by more than 10% of track
     if (!State.wrongWay) {
       if (sounds.wrong) { sounds.wrong.currentTime = 0; sounds.wrong.play(); }
@@ -1732,7 +1732,7 @@ function updateAI(dt) {
     // Random speed variation - increased base speed
     ai.reactDelay -= dt;
     if (ai.reactDelay <= 0) {
-      ai.targetSpeed = (0.3 + Math.random() * 0.2) * WORLD_SCALE; // Increased from 0.07-0.12 to 0.3-0.5
+      ai.targetSpeed = (0.5 + Math.random() * 0.2) * WORLD_SCALE; // Increased for more competitive AI
       ai.reactDelay = 1 + Math.random() * 2;
     }
     ai.speed += (ai.targetSpeed - ai.speed) * 1.5 * dt;
