@@ -1,0 +1,1247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>THE UNDERCURRENT — An Urban Fantasy</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Share+Tech+Mono&display=swap');
+
+:root {
+  --ink: #0a0a0f;
+  --paper: #f5f0e8;
+  --gold: #c9a84c;
+  --gold-dim: #7a6030;
+  --blood: #8b1a1a;
+  --ether: #1a2a4a;
+  --ether-glow: #3d6fa8;
+  --fog: #2a2a35;
+  --mist: rgba(200,190,170,0.15);
+  --accent: #4a8a6a;
+  --warning: #c05a20;
+  --text: #e8e0d0;
+  --text-dim: #9a9080;
+  --panel: rgba(10,10,20,0.85);
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  background: var(--ink);
+  color: var(--text);
+  font-family: 'Crimson Pro', Georgia, serif;
+  font-size: 18px;
+  line-height: 1.7;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── ATMOSPHERIC BACKGROUND ── */
+.bg-layer {
+  position: fixed; inset: 0; z-index: 0;
+  background:
+    radial-gradient(ellipse 60% 40% at 20% 80%, rgba(26,42,74,0.6) 0%, transparent 70%),
+    radial-gradient(ellipse 40% 60% at 80% 20%, rgba(139,26,26,0.25) 0%, transparent 60%),
+    radial-gradient(ellipse 80% 80% at 50% 50%, rgba(10,10,20,1) 0%, #0d0d18 100%);
+}
+
+.bg-grain {
+  position: fixed; inset: 0; z-index: 1; pointer-events: none; opacity: 0.04;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 200px 200px;
+}
+
+.bg-lines {
+  position: fixed; inset: 0; z-index: 1; pointer-events: none; opacity: 0.03;
+  background-image: repeating-linear-gradient(0deg, transparent, transparent 28px, rgba(200,190,170,0.5) 28px, rgba(200,190,170,0.5) 29px);
+}
+
+/* ── LAYOUT ── */
+#app {
+  position: relative; z-index: 10;
+  max-width: 900px;
+  margin: 0 auto;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding: 0 20px;
+}
+
+/* ── HEADER ── */
+header {
+  text-align: center;
+  padding: 40px 0 20px;
+  border-bottom: 1px solid rgba(201,168,76,0.2);
+  position: relative;
+}
+
+.title-main {
+  font-family: 'Cinzel Decorative', serif;
+  font-size: clamp(28px, 5vw, 52px);
+  font-weight: 700;
+  color: var(--gold);
+  letter-spacing: 0.08em;
+  text-shadow: 0 0 40px rgba(201,168,76,0.4), 0 2px 4px rgba(0,0,0,0.8);
+  animation: titlePulse 4s ease-in-out infinite;
+}
+@keyframes titlePulse {
+  0%,100% { text-shadow: 0 0 30px rgba(201,168,76,0.3), 0 2px 4px rgba(0,0,0,0.8); }
+  50% { text-shadow: 0 0 60px rgba(201,168,76,0.6), 0 2px 4px rgba(0,0,0,0.8); }
+}
+
+.title-sub {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.3em;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  margin-top: 6px;
+}
+
+/* ── HUD ── */
+#hud {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(201,168,76,0.1);
+  margin-bottom: 4px;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 11px;
+}
+
+.hud-left { display: flex; flex-direction: column; gap: 4px; }
+.hud-right { display: flex; flex-direction: column; gap: 4px; align-items: flex-end; }
+.hud-center { text-align: center; }
+
+.hud-label { color: var(--text-dim); letter-spacing: 0.15em; text-transform: uppercase; }
+.hud-value { color: var(--gold); font-size: 13px; }
+
+.stat-bar-wrap { display: flex; align-items: center; gap: 8px; }
+.stat-bar {
+  width: 80px; height: 4px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.stat-fill {
+  height: 100%; border-radius: 2px;
+  transition: width 0.5s ease;
+}
+.fill-trust { background: var(--accent); }
+.fill-risk { background: var(--blood); }
+.fill-insight { background: var(--ether-glow); }
+
+.faction-badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border: 1px solid currentColor;
+  border-radius: 2px;
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+.badge-none { color: var(--text-dim); border-color: var(--text-dim); }
+.badge-veil { color: #9a7fd4; border-color: #9a7fd4; }
+.badge-iron { color: #8aaa88; border-color: #8aaa88; }
+.badge-hand { color: var(--blood); border-color: var(--blood); }
+.badge-free { color: var(--gold); border-color: var(--gold); }
+
+.location-display {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 10px;
+  color: var(--text-dim);
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+
+/* ── MAP ── */
+#map-container {
+  position: relative;
+  width: 100%;
+  height: 160px;
+  margin: 8px 0;
+  border: 1px solid rgba(201,168,76,0.15);
+  background: rgba(10,15,30,0.8);
+  overflow: hidden;
+  border-radius: 2px;
+  display: none;
+}
+#map-container.visible { display: block; }
+#map-container canvas { width: 100%; height: 100%; }
+
+/* ── SCENE ── */
+#scene-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 24px 0;
+}
+
+.scene-location {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.3em;
+  color: var(--gold-dim);
+  text-transform: uppercase;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.scene-location::before, .scene-location::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(to right, transparent, rgba(201,168,76,0.2));
+}
+.scene-location::after {
+  background: linear-gradient(to left, transparent, rgba(201,168,76,0.2));
+}
+
+#scene-image {
+  width: 100%;
+  height: 200px;
+  border: 1px solid rgba(201,168,76,0.1);
+  margin-bottom: 20px;
+  position: relative;
+  overflow: hidden;
+  display: none;
+}
+#scene-image.visible { display: block; }
+#scene-image canvas { width: 100%; height: 100%; }
+
+.scene-atmosphere {
+  font-style: italic;
+  color: var(--text-dim);
+  font-size: 15px;
+  margin-bottom: 16px;
+  padding-left: 20px;
+  border-left: 2px solid rgba(201,168,76,0.2);
+  line-height: 1.6;
+}
+
+#story-text {
+  font-size: clamp(16px, 2.2vw, 19px);
+  line-height: 1.85;
+  color: var(--text);
+  min-height: 120px;
+}
+
+#story-text p { margin-bottom: 14px; }
+#story-text .speech { color: var(--paper); font-style: italic; }
+#story-text .magic { color: #9a7fd4; }
+#story-text .danger { color: var(--blood); }
+#story-text .clue { color: var(--gold); }
+#story-text .npc-name { color: var(--accent); font-weight: 600; }
+#story-text .emphasis { color: var(--gold); font-weight: 600; }
+
+/* ── CHOICES ── */
+#choices {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 28px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(201,168,76,0.1);
+}
+
+.choice-btn {
+  background: transparent;
+  border: 1px solid rgba(201,168,76,0.25);
+  color: var(--text);
+  font-family: 'Crimson Pro', serif;
+  font-size: 17px;
+  padding: 14px 20px;
+  text-align: left;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.25s ease;
+  line-height: 1.5;
+  border-radius: 1px;
+}
+
+.choice-btn:hover {
+  background: rgba(201,168,76,0.07);
+  border-color: var(--gold);
+  color: var(--gold);
+  padding-left: 28px;
+}
+
+.choice-btn::before {
+  content: '›';
+  position: absolute;
+  left: 8px;
+  opacity: 0;
+  color: var(--gold);
+  transition: opacity 0.2s;
+  font-size: 20px;
+  top: 50%; transform: translateY(-50%);
+}
+.choice-btn:hover::before { opacity: 1; }
+
+.choice-tag {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  color: var(--text-dim);
+  display: block;
+  margin-bottom: 2px;
+  text-transform: uppercase;
+}
+.tag-investigate { color: var(--ether-glow); }
+.tag-social { color: var(--accent); }
+.tag-risky { color: var(--blood); }
+.tag-magic { color: #9a7fd4; }
+.tag-moral { color: var(--warning); }
+
+/* ── LOG ── */
+#log-panel {
+  background: rgba(10,10,15,0.6);
+  border: 1px solid rgba(201,168,76,0.08);
+  padding: 16px 20px;
+  margin-top: 20px;
+  max-height: 120px;
+  overflow-y: auto;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 11px;
+  line-height: 1.8;
+  color: var(--text-dim);
+}
+#log-panel::-webkit-scrollbar { width: 4px; }
+#log-panel::-webkit-scrollbar-track { background: transparent; }
+#log-panel::-webkit-scrollbar-thumb { background: rgba(201,168,76,0.2); border-radius: 2px; }
+
+.log-entry { border-bottom: 1px solid rgba(255,255,255,0.03); padding: 3px 0; }
+.log-entry span { color: var(--gold-dim); }
+
+/* ── NOTES/CODEX ── */
+#codex-btn {
+  position: fixed;
+  top: 20px; right: 20px;
+  background: rgba(10,10,20,0.9);
+  border: 1px solid rgba(201,168,76,0.3);
+  color: var(--gold);
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  padding: 8px 14px;
+  cursor: pointer;
+  z-index: 100;
+  text-transform: uppercase;
+  transition: all 0.2s;
+}
+#codex-btn:hover { background: rgba(201,168,76,0.1); }
+
+#codex-panel {
+  position: fixed;
+  top: 0; right: -380px;
+  width: 360px;
+  height: 100vh;
+  background: rgba(8,8,16,0.97);
+  border-left: 1px solid rgba(201,168,76,0.2);
+  z-index: 200;
+  transition: right 0.35s ease;
+  overflow-y: auto;
+  padding: 60px 24px 24px;
+}
+#codex-panel.open { right: 0; }
+
+.codex-close {
+  position: absolute; top: 16px; right: 16px;
+  background: none; border: none;
+  color: var(--text-dim); font-size: 20px; cursor: pointer;
+}
+
+.codex-section { margin-bottom: 28px; }
+.codex-title {
+  font-family: 'Cinzel Decorative', serif;
+  font-size: 12px;
+  color: var(--gold);
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(201,168,76,0.15);
+}
+.codex-item {
+  font-size: 14px;
+  color: var(--text-dim);
+  line-height: 1.6;
+  margin-bottom: 8px;
+  padding-left: 12px;
+  border-left: 2px solid rgba(201,168,76,0.1);
+}
+.codex-item strong { color: var(--text); display: block; font-size: 13px; }
+
+/* ── TITLE SCREEN ── */
+#title-screen {
+  position: fixed; inset: 0; z-index: 300;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  background: var(--ink);
+  text-align: center;
+  padding: 40px;
+  transition: opacity 0.8s ease;
+}
+#title-screen.fade-out { opacity: 0; pointer-events: none; }
+
+.title-screen-main {
+  font-family: 'Cinzel Decorative', serif;
+  font-size: clamp(32px, 7vw, 72px);
+  color: var(--gold);
+  text-shadow: 0 0 80px rgba(201,168,76,0.5);
+  margin-bottom: 8px;
+  animation: titlePulse 3s ease-in-out infinite;
+}
+.title-screen-sub {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 12px;
+  letter-spacing: 0.4em;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  margin-bottom: 40px;
+}
+.title-screen-quote {
+  font-family: 'Crimson Pro', serif;
+  font-style: italic;
+  font-size: 16px;
+  color: var(--text-dim);
+  max-width: 480px;
+  line-height: 1.8;
+  margin-bottom: 48px;
+}
+.start-btn {
+  font-family: 'Cinzel Decorative', serif;
+  font-size: 14px;
+  letter-spacing: 0.15em;
+  background: transparent;
+  border: 1px solid var(--gold);
+  color: var(--gold);
+  padding: 16px 48px;
+  cursor: pointer;
+  transition: all 0.3s;
+  text-transform: uppercase;
+}
+.start-btn:hover {
+  background: rgba(201,168,76,0.1);
+  box-shadow: 0 0 30px rgba(201,168,76,0.2);
+}
+
+/* ── ANIMATIONS ── */
+@keyframes fadeIn { from { opacity:0; transform: translateY(8px); } to { opacity:1; transform: translateY(0); } }
+.fade-in { animation: fadeIn 0.5s ease forwards; }
+
+@keyframes flicker { 0%,100%{opacity:1} 50%{opacity:0.92} 75%{opacity:0.98} }
+.flicker { animation: flicker 3s ease-in-out infinite; }
+
+.typing-cursor::after {
+  content: '▋';
+  animation: blink 1s step-end infinite;
+  color: var(--gold);
+}
+@keyframes blink { 50%{opacity:0} }
+
+/* ── DIVIDER ── */
+.ornate-divider {
+  text-align: center;
+  color: var(--gold-dim);
+  font-size: 18px;
+  margin: 8px 0;
+  letter-spacing: 0.5em;
+  opacity: 0.4;
+}
+
+/* ── NOTIFICATION ── */
+#notification {
+  position: fixed;
+  bottom: 20px; left: 50%; transform: translateX(-50%);
+  background: rgba(10,10,20,0.95);
+  border: 1px solid var(--gold);
+  color: var(--gold);
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 12px;
+  letter-spacing: 0.15em;
+  padding: 12px 24px;
+  z-index: 400;
+  opacity: 0;
+  transition: opacity 0.4s;
+  text-transform: uppercase;
+  pointer-events: none;
+  max-width: 90vw;
+  text-align: center;
+}
+#notification.show { opacity: 1; }
+
+/* ── ENDING SCREEN ── */
+#ending-screen {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 60px 40px;
+  min-height: 60vh;
+}
+#ending-screen.visible { display: flex; }
+.ending-title {
+  font-family: 'Cinzel Decorative', serif;
+  font-size: clamp(24px, 4vw, 40px);
+  color: var(--gold);
+  margin-bottom: 16px;
+}
+.ending-text {
+  font-size: 17px;
+  color: var(--text-dim);
+  max-width: 600px;
+  line-height: 1.9;
+  margin-bottom: 32px;
+}
+.replay-btn {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  background: transparent;
+  border: 1px solid rgba(201,168,76,0.4);
+  color: var(--gold-dim);
+  padding: 12px 32px;
+  cursor: pointer;
+  text-transform: uppercase;
+  transition: all 0.3s;
+}
+.replay-btn:hover { border-color: var(--gold); color: var(--gold); }
+
+/* scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: rgba(0,0,0,0.3); }
+::-webkit-scrollbar-thumb { background: rgba(201,168,76,0.15); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<!-- BG LAYERS -->
+<div class="bg-layer"></div>
+<div class="bg-grain"></div>
+<div class="bg-lines"></div>
+
+<!-- TITLE SCREEN -->
+<div id="title-screen">
+  <div class="title-screen-main">THE UNDERCURRENT</div>
+  <div class="title-screen-sub">An Urban Fantasy · Chicago, 2024</div>
+  <div class="title-screen-quote">
+    "The city breathes beneath itself — sewers of intention, underground rivers of will.<br>
+    Magic didn't leave America. It went underground, like everything else that mattered."
+  </div>
+  <button class="start-btn" onclick="startGame()">Begin Your Descent</button>
+</div>
+
+<!-- CODEX -->
+<button id="codex-btn" onclick="toggleCodex()">Codex ◈</button>
+<div id="codex-panel">
+  <button class="codex-close" onclick="toggleCodex()">✕</button>
+  <div class="codex-section">
+    <div class="codex-title">Factions</div>
+    <div class="codex-item">
+      <strong>The Veil Commission</strong>
+      An ancient bureaucracy of mages who enforce "Secrecy Protocols" — keeping magic hidden from the public. Powerful, procedural, ruthless when crossed.
+    </div>
+    <div class="codex-item">
+      <strong>The Iron Congregation</strong>
+      A grassroots movement of urban witches and shamans who believe magic should serve communities, not be controlled by elites.
+    </div>
+    <div class="codex-item">
+      <strong>The Crimson Hand</strong>
+      A shadow cartel trading in stolen magical artifacts and bound spirits. Run by someone called only "the Architect."
+    </div>
+    <div class="codex-item">
+      <strong>The Freeborn Circuit</strong>
+      Idealistic hackers and activists who want to expose magic's existence to the public — believing transparency is the only path forward.
+    </div>
+  </div>
+  <div class="codex-section">
+    <div class="codex-title">Key Characters</div>
+    <div class="codex-item">
+      <strong>Detective Mara Osei</strong>
+      Homicide detective. She knows more than she lets on. Ally or obstacle — unclear.
+    </div>
+    <div class="codex-item">
+      <strong>The Librarian (Ezra Vance)</strong>
+      Runs a used bookshop in Wicker Park. Broker of secrets. Oldest living Veil Commission member — or claims to be.
+    </div>
+    <div class="codex-item">
+      <strong>Sable</strong>
+      Iron Congregation field organizer. Suspicious of you. Passionate. Dangerous.
+    </div>
+  </div>
+  <div class="codex-section">
+    <div class="codex-title">Lore</div>
+    <div class="codex-item">
+      <strong>The Undercurrent</strong>
+      A ley line network running beneath Chicago, activated by the Great Fire of 1871. The city was rebuilt on top of it, unknowingly.
+    </div>
+    <div class="codex-item">
+      <strong>Secrecy Protocols</strong>
+      Memory-erasure sigils embedded in city infrastructure. You've always ignored them — you've always been different.
+    </div>
+  </div>
+  <div class="codex-section">
+    <div class="codex-title">Your Stats</div>
+    <div id="codex-stats" style="font-size:13px; color: var(--text-dim); font-family: 'Share Tech Mono', monospace; line-height:2;"></div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="app">
+  <header>
+    <div class="title-main flicker">THE UNDERCURRENT</div>
+    <div class="title-sub">Chicago · Where the Ley Lines Run</div>
+  </header>
+
+  <div id="hud">
+    <div class="hud-left">
+      <div>
+        <div class="hud-label">Trust</div>
+        <div class="stat-bar-wrap">
+          <div class="stat-bar"><div class="stat-fill fill-trust" id="bar-trust" style="width:50%"></div></div>
+          <div class="hud-value" id="val-trust">50</div>
+        </div>
+      </div>
+      <div>
+        <div class="hud-label">Insight</div>
+        <div class="stat-bar-wrap">
+          <div class="stat-bar"><div class="stat-fill fill-insight" id="bar-insight" style="width:20%"></div></div>
+          <div class="hud-value" id="val-insight">20</div>
+        </div>
+      </div>
+    </div>
+    <div class="hud-center">
+      <div class="hud-label" style="margin-bottom:4px">Allegiance</div>
+      <div id="faction-badge" class="faction-badge badge-none">Unaffiliated</div>
+      <div class="location-display" id="hud-location" style="margin-top:6px">Chicago, IL</div>
+    </div>
+    <div class="hud-right">
+      <div>
+        <div class="hud-label">Risk</div>
+        <div class="stat-bar-wrap" style="flex-direction:row-reverse">
+          <div class="stat-bar"><div class="stat-fill fill-risk" id="bar-risk" style="width:10%"></div></div>
+          <div class="hud-value" id="val-risk">10</div>
+        </div>
+      </div>
+      <div>
+        <div class="hud-label">Chapter</div>
+        <div class="hud-value" id="val-chapter">1 / 5</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="scene-container">
+    <div class="scene-location" id="scene-location-label">Prologue</div>
+    <div class="scene-atmosphere" id="scene-atmosphere"></div>
+    <div id="story-text"></div>
+    <div id="choices"></div>
+  </div>
+
+  <div id="log-panel">
+    <div style="color:var(--gold-dim); font-size:10px; letter-spacing:0.2em; margin-bottom:6px">INCIDENT LOG ──</div>
+    <div id="log-entries"></div>
+  </div>
+
+  <div id="ending-screen">
+    <div class="ending-title" id="ending-title"></div>
+    <div class="ending-text" id="ending-text"></div>
+    <button class="replay-btn" onclick="resetGame()">Begin Again</button>
+  </div>
+</div>
+
+<div id="notification"></div>
+
+<script>
+// ══════════════════════════════════════════════════
+//  GAME STATE
+// ══════════════════════════════════════════════════
+let state = {
+  trust: 50,
+  risk: 10,
+  insight: 20,
+  chapter: 1,
+  faction: 'none',
+  flags: {},
+  log: [],
+  characterName: 'the Investigator'
+};
+
+// ══════════════════════════════════════════════════
+//  STORY DATA
+// ══════════════════════════════════════════════════
+const scenes = {
+
+  // ── PROLOGUE ──────────────────────────────────
+  'prologue': {
+    location: 'Wicker Park, Chicago · 2:47 AM',
+    atmosphere: 'Sleet hisses against the sidewalk. A streetlight above flickers in a rhythm that feels intentional.',
+    text: `<p>You find the body in the alley behind Ezra's Books at 2:47 in the morning. You weren't supposed to be here. You're a freelance journalist — or you were, until your editor killed your story about <span class="clue">unusual energy readings along the Chicago River</span>.</p>
+<p>The dead man is in his fifties, wearing a Veil Commission badge clipped to his lapel — one of those <em>other</em> agencies the city doesn't officially acknowledge. His hands are folded. His expression is peaceful. But his <span class="magic">eyes glow faintly gold</span>, even in death.</p>
+<p>A phone buzzes in his breast pocket. The screen reads: <span class="clue">"She knows about the Undercurrent. Stop her or we do."</span></p>
+<p>Footsteps echo at the alley's mouth. Someone is coming.</p>`,
+    choices: [
+      { text: 'Pocket the phone. Disappear into the shadows before they arrive.', tag: 'risky', tagLabel: 'RISKY', next: 'took_phone', effect: {risk: 20, insight: 10}, log: 'Took the dead agent\'s phone.' },
+      { text: 'Stay. When the figure arrives, it\'s Det. Mara Osei — you know her from a story two years ago. Make yourself known.', tag: 'social', tagLabel: 'SOCIAL', next: 'met_mara', effect: {trust: 10, risk: 5}, log: 'Introduced yourself to Detective Osei at the scene.' },
+      { text: 'Photograph everything you can — the badge, the message, the glowing eyes — before you run.', tag: 'investigate', tagLabel: 'INVESTIGATE', next: 'photographed', effect: {insight: 20}, log: 'Documented the crime scene before fleeing.' },
+    ]
+  },
+
+  // ── BRANCH: TOOK PHONE ────────────────────────
+  'took_phone': {
+    location: 'Your Apartment · Pilsen, 4:30 AM',
+    atmosphere: 'Rain drums on a cracked window. Your desk lamp casts a warm island in the dark.',
+    text: `<p>The phone is encrypted — standard Veil Commission issue, by the look of the sigil etched into the back. But whoever sent that last message used a number you can trace.</p>
+<p>You spend two hours on it. The number leads to a burner registered to a shell company: <span class="clue">Meridian Cultural Trust</span>. That name is in your notes. It funded the gallery on Michigan Avenue that your editor had flagged as "off limits" before she killed your story.</p>
+<p>At 4 AM, the phone buzzes again. <span class="speech">"You're not Harmon. Who has his phone?"</span></p>
+<p>Your cursor blinks. Whoever this is — they don't know what you look like. Not yet.</p>`,
+    choices: [
+      { text: 'Reply: "Harmon is dead. I know about the Undercurrent. We should talk."', tag: 'risky', tagLabel: 'RISKY · HIGH STAKES', next: 'contact_made', effect: {risk: 25, insight: 15, trust: -10}, log: 'Made contact with unknown party via stolen phone.' },
+      { text: 'Don\'t reply. Go to Ezra\'s Books when it opens — Harmon\'s badge had the store\'s address printed on a receipt.', tag: 'investigate', tagLabel: 'INVESTIGATE', next: 'visit_ezra', effect: {insight: 10}, log: 'Decided to visit Ezra\'s Books.' },
+      { text: 'Take the phone to Detective Osei. Trading it for protection might be worth losing the lead.', tag: 'social', tagLabel: 'SOCIAL · TRUST', next: 'met_mara_with_phone', effect: {trust: 20, risk: -10, insight: -5}, log: 'Brought evidence to Detective Osei.' },
+    ]
+  },
+
+  // ── BRANCH: MET MARA ─────────────────────────
+  'met_mara': {
+    location: 'Crime Scene · Wicker Park Alley',
+    atmosphere: 'Blue and red light seeps around the alley mouth. Mara\'s face is unreadable.',
+    text: `<p><span class="npc-name">Detective Mara Osei</span> stares at you for a long moment. Her hand rests near her holster — not threateningly. Reflexively. She's been scared before and learned to look like she hasn't.</p>
+<p><span class="speech">"You shouldn't be here,"</span> she says. Then, quieter: <span class="speech">"Neither should I."</span></p>
+<p>She crouches beside the body. You watch her clock the glowing eyes without flinching — which means she's seen this before. She palms the Commission badge and pockets it before her uniformed backup arrives.</p>
+<p><span class="speech">"Come to the precinct at nine. Not as a suspect. As a consultant."</span> She pauses. <span class="speech">"Someone has been moving artifacts through this neighborhood for six months. Harmon was my contact. Now he's dead, and whoever killed him is going to notice I'm asking questions."</span></p>
+<p>She hands you a card. On the back, handwritten: <span class="clue">ASK EZRA ABOUT THE WELL.</span></p>`,
+    choices: [
+      { text: 'Agree to consult. Go to the precinct at nine — inside information is worth the exposure.', tag: 'social', tagLabel: 'ALLIANCE', next: 'mara_alliance', effect: {trust: 20, risk: 10}, log: 'Agreed to consult for Detective Osei.' },
+      { text: 'Take the card. Say nothing. You\'ll investigate independently before trusting a cop.', tag: 'investigate', tagLabel: 'CAUTIOUS', next: 'visit_ezra', effect: {insight: 10, trust: -5}, log: 'Declined Mara\'s offer for now. Kept the card.' },
+    ]
+  },
+
+  // ── BRANCH: PHOTOGRAPHED ─────────────────────
+  'photographed': {
+    location: 'Wicker Park · Pre-dawn streets',
+    atmosphere: 'You move quickly. The photographs burn in your phone like evidence of something you can\'t name yet.',
+    text: `<p>By the time you're two blocks away, you hear the sirens. Someone else called it in.</p>
+<p>Your phone holds seventeen photographs. In three of them, the gold in Harmon's eyes is clearly visible. In one — the last one, taken just before you ran — there is a <span class="magic">second light source</span> you don't remember seeing. A faint luminous trail leading from Harmon's chest toward the alley wall. Toward a door you didn't notice.</p>
+<p>You zoom in. Behind the dumpster, almost invisible: <span class="clue">a symbol carved into the brick</span>. A compass rose with a serpent threaded through it. Below it, in chalk, a single word: <em>Descend.</em></p>
+<p>You know that symbol. It's on the cover of a book in Ezra Vance's shop window. It's been there for thirty years. You used to think it was decoration.</p>`,
+    choices: [
+      { text: 'Go to Ezra\'s Books the moment it opens. The symbol is a message — possibly for you.', tag: 'investigate', tagLabel: 'INVESTIGATE', next: 'visit_ezra', effect: {insight: 15}, log: 'Recognized the Iron Congregation symbol. Heading to Ezra\'s.' },
+      { text: 'Send the photographs to a trusted anonymous drop. Insurance — in case something happens to you.', tag: 'risky', tagLabel: 'STRATEGIC', next: 'photos_sent', effect: {risk: 10, trust: 5}, log: 'Sent encrypted copies of crime scene photos as insurance.' },
+    ]
+  },
+
+  // ── EZRA'S BOOKS ─────────────────────────────
+  'visit_ezra': {
+    location: 'Ezra\'s Books · Wicker Park · 9 AM',
+    atmosphere: 'The shop smells of old paper and something older — cedar, maybe, or burnt sage. Every surface is covered. The cat on the counter watches you like it\'s heard your name before.',
+    text: `<p>Ezra Vance is behind the counter when you enter. He is, by any reasonable estimation, about seventy — lean, unhurried, with wire-rimmed glasses and ink-stained fingers. He does not look up when the bell rings.</p>
+<p><span class="speech">"I heard about Marcus,"</span> he says. <span class="speech">"Harmon. Whatever name he was using."</span></p>
+<p>He sets down his pen. Regards you over the glasses.</p>
+<p><span class="speech">"You've been immune to the Protocols since you were nineteen. You just never told anyone."</span> It's not a question. <span class="speech">"The Veil Commission knows. So does the Iron Congregation. And now the Crimson Hand is asking about you by name. You have perhaps forty-eight hours before your options narrow considerably."</span></p>
+<p>He slides a folded map across the counter. <span class="clue">The Undercurrent access points, marked in red ink.</span> Seven locations across Chicago.</p>
+<p><span class="speech">"The question,"</span> Ezra says, <span class="speech">"is which door you open."</span></p>`,
+    choices: [
+      { text: '"Tell me everything about the Veil Commission. I want to understand what Harmon died for."', tag: 'investigate', tagLabel: 'INVESTIGATE · LORE', next: 'veil_path', effect: {insight: 20}, log: 'Chose to learn about the Veil Commission from Ezra.' },
+      { text: '"The Iron Congregation symbol in the alley — they left it for me, didn\'t they? Arrange a meeting."', tag: 'social', tagLabel: 'FACTION', next: 'iron_path', effect: {trust: 10, faction: 'iron'}, log: 'Requested introduction to the Iron Congregation.' },
+      { text: '"Forty-eight hours is enough. What\'s in the Undercurrent that everyone wants so badly?"', tag: 'magic', tagLabel: 'MAGICAL', next: 'undercurrent_path', effect: {insight: 25, risk: 15}, log: 'Asked about the Undercurrent directly.' },
+      { text: '"The Crimson Hand — they\'re the ones who killed Harmon. I want to find the Architect."', tag: 'risky', tagLabel: 'DANGEROUS', next: 'crimson_path', effect: {risk: 30, insight: 10}, log: 'Chose to pursue the Crimson Hand directly. High risk.' },
+    ]
+  },
+
+  // ── PATH: VEIL COMMISSION ─────────────────────
+  'veil_path': {
+    location: 'Ezra\'s Books · Back Room',
+    atmosphere: 'The back room is lined with books that have no titles on their spines. Ezra brews tea from a kettle that never seems to have been put on.',
+    text: `<p>Ezra speaks for two hours. You take notes until your hand cramps.</p>
+<p>The Veil Commission was founded in 1893, at the World's Columbian Exposition — a cover event for the largest gathering of American practitioners in history. Their mandate: <span class="clue">preserve the Secrecy Protocols</span>, maintain the ley line network, prevent what they call "Disclosure Events."</p>
+<p>Marcus Harmon was a Compliance Officer. He'd been secretly feeding information to Detective Osei for three months. Someone inside the Commission found out.</p>
+<p><span class="speech">"The Commission has a mole problem,"</span> Ezra says, refilling your cup. <span class="speech">"Three agents dead in six months. And the Undercurrent — the primary Chicago node — is destabilizing. Someone is deliberately overloading it. If it ruptures, every Secrecy Protocol in the city fails simultaneously."</span></p>
+<p>He looks at you steadily. <span class="speech">"A Disclosure Event in Chicago would change everything. For everyone. Whether that's salvation or catastrophe depends entirely on who controls the narrative."</span></p>
+<p>His phone rings. He glances at it. <span class="speech">"That's a Commission representative. They want to meet you."</span> A pause. <span class="speech">"I told them you might be persuadable. Was I wrong?"</span></p>`,
+    choices: [
+      { text: 'Meet with the Commission. Work from inside — learn their weaknesses.', tag: 'risky', tagLabel: 'INFILTRATE', next: 'join_veil', effect: {faction: 'veil', risk: 20, insight: 15}, log: 'Agreed to meet with the Veil Commission.' },
+      { text: 'Decline. The Commission kills people who know too much — like Harmon. Find another way.', tag: 'moral', tagLabel: 'MORAL CHOICE', next: 'refuse_veil', effect: {trust: 10, risk: 10, insight: 10}, log: 'Refused Veil Commission contact. Chose independent path.' },
+    ]
+  },
+
+  // ── PATH: IRON CONGREGATION ───────────────────
+  'iron_path': {
+    location: 'Pilsen · A Community Garden · Noon',
+    atmosphere: 'Murals cover every wall — but look at them from the corner of your eye and the figures move.',
+    text: `<p><span class="npc-name">Sable</span> meets you at the gate. She's thirty, maybe, with burn scars on her forearms and a ward tattooed at her throat that you can almost read.</p>
+<p><span class="speech">"You're the journalist,"</span> she says. Not warmly. <span class="speech">"We know about you. We've known about you for two years, since you started sniffing around the river readings."</span></p>
+<p>She leads you through the garden. Behind the tool shed, six people sit in a circle. One of them is crying quietly. Another is grinding something in a mortar. The air smells of petrichor and copper.</p>
+<p><span class="speech">"The Congregation doesn't trust outsiders,"</span> Sable says. <span class="speech">"But Harmon trusted us before the Commission claimed him. He left a message. For someone immune to the Protocols."</span></p>
+<p>She hands you a sealed envelope. Your name is on it — not your byline. Your <em>real</em> name. The one you haven't used since you were nine.</p>
+<p><span class="speech">"The Commission wants the Undercurrent locked down forever. We want it opened — for everyone. The Crimson Hand wants it weaponized."</span> She looks at you. <span class="speech">"Harmon died trying to find a fourth option. We think he found it. That letter is his proof."</span></p>`,
+    choices: [
+      { text: 'Open the letter. Right now, in front of Sable.', tag: 'social', tagLabel: 'TRUST · OPEN', next: 'harmon_letter', effect: {trust: 20, faction: 'iron', insight: 20}, log: 'Opened Harmon\'s letter with the Iron Congregation present.' },
+      { text: 'Pocket the letter unopened. Read it alone first — trust is earned, not given.', tag: 'investigate', tagLabel: 'CAUTIOUS', next: 'harmon_letter_solo', effect: {trust: -10, insight: 15}, log: 'Took Harmon\'s letter but chose to read it privately.' },
+    ]
+  },
+
+  // ── PATH: UNDERCURRENT ────────────────────────
+  'undercurrent_path': {
+    location: 'Lower Wacker Drive · A Hidden Entrance',
+    atmosphere: 'You follow the map into the bones of the city. The sound of traffic disappears. Something hums below.',
+    text: `<p>The seventh access point on Ezra's map is beneath a maintenance door on Lower Wacker Drive, six feet underground. The sigil on the door is the same compass-serpent from the alley. Your hand on the handle causes it to <span class="magic">glow warm gold</span>.</p>
+<p>Inside: a tunnel older than the street above it. The walls are carved with thousands of names — practitioners, going back to 1871. And at the end of the tunnel, a chamber. In the center: a <span class="magic">column of light</span>, perhaps fifteen feet tall, pulsing in slow arrhythmic bursts.</p>
+<p>It's beautiful. It's also <span class="danger">wrong</span>. The pulses are irregular — like a heartbeat going into failure. And someone has been here recently. Boot prints in the dust. A notebook, left open.</p>
+<p>You read three pages before you understand. The notebook belongs to <span class="clue">Marcus Harmon</span>. He mapped the disruptions. He identified the source: someone feeding corrupted sigils into the grid via the <span class="clue">Meridian Cultural Trust gallery on Michigan Avenue</span>. He knew who it was.</p>
+<p>He wrote the name on the last page — and then crossed it out so violently the pen tore through. But in the right light, you can almost read it.</p>`,
+    choices: [
+      { text: 'Spend more time in the chamber. The light is affecting you — your immunity is waking into something else.', tag: 'magic', tagLabel: 'MAGICAL AWAKENING', next: 'awakening', effect: {insight: 30, risk: 20}, log: 'Remained in the Undercurrent node. Something is changing.' },
+      { text: 'Take the notebook. Go to the Meridian gallery immediately — catch the saboteur in the act.', tag: 'risky', tagLabel: 'URGENT · RISKY', next: 'meridian_confrontation', effect: {risk: 25, insight: 20}, log: 'Recovered Harmon\'s notebook. Racing to the Meridian gallery.' },
+      { text: 'Photograph the notebook and get out. Send everything to Detective Osei — this is too big to handle alone.', tag: 'social', tagLabel: 'ALLIANCE', next: 'mara_alliance', effect: {trust: 20, risk: -10, insight: 15}, log: 'Documented Harmon\'s notebook and notified Detective Osei.' },
+    ]
+  },
+
+  // ── CRIMSON PATH ──────────────────────────────
+  'crimson_path': {
+    location: 'The Gold Coast · A Private Members Club',
+    atmosphere: 'Everything here costs money you don\'t have. The candles are real. The smiles are not.',
+    text: `<p>Ezra gives you a name and an address. He doesn't warn you — which means he's already decided what he thinks of your chances, and has chosen kindness over honesty.</p>
+<p>The club is on Dearborn. You get in with a press credential so old it's technically not a lie. The contact — a fixer named <span class="npc-name">Dominic Cray</span> — finds you at the bar.</p>
+<p>He's younger than you expected. He's also <span class="danger">not alone</span>. Two people at the next table haven't moved since you sat down.</p>
+<p><span class="speech">"You want the Architect,"</span> Dominic says pleasantly, like you've asked for a drink. <span class="speech">"Everyone does. The Veil Commission. That little garden collective in Pilsen. And now a journalist with no credentials, no backing, and an alarming tendency to be in alleys where our associates die."</span></p>
+<p>He slides a phone across the bar. One message on the screen: <span class="clue">YOU HAVE SOMETHING WE WANT. THE IMMUNITY. WORK WITH US FOR 72 HOURS. THEN WALK AWAY WITH EVERYTHING HARMON KNEW.</span></p>
+<p><span class="speech">"Or,"</span> Dominic says, <span class="speech">"you decline. And we find out what you know the other way."</span></p>`,
+    choices: [
+      { text: 'Agree — provisionally. 72 hours inside the Crimson Hand is leverage no one else has.', tag: 'risky', tagLabel: 'DEEP COVER · EXTREME RISK', next: 'crimson_infiltrate', effect: {risk: 40, insight: 25, faction: 'hand'}, log: 'Agreed to 72-hour arrangement with the Crimson Hand. Playing dangerous game.' },
+      { text: 'Stall. "I need 24 hours to consider." Leave, and warn Mara immediately.', tag: 'moral', tagLabel: 'RETREAT · WARN OTHERS', next: 'mara_alliance', effect: {risk: 15, trust: 20}, log: 'Stalled Crimson Hand. Retreating to warn allies.' },
+      { text: 'Refuse, openly. "I know what you did to Harmon. I\'m going to burn you down."', tag: 'risky', tagLabel: 'DEFIANT · CATASTROPHIC RISK', next: 'open_war', effect: {risk: 50, trust: 30, insight: 10}, log: 'Openly refused and threatened the Crimson Hand. All-out war.' },
+    ]
+  },
+
+  // ── CONVERGENCE: MARA ALLIANCE ────────────────
+  'mara_alliance': {
+    location: 'Chicago PD 13th District · Interview Room 4',
+    atmosphere: 'Fluorescent lights. Coffee from 6 AM. Mara looks like she hasn\'t slept.',
+    text: `<p><span class="npc-name">Detective Osei</span> listens to everything you have. She doesn't interrupt once. When you finish, she turns the coffee cup in a slow circle.</p>
+<p><span class="speech">"The gallery,"</span> she says. <span class="speech">"Meridian Cultural Trust. I've had a file on that organization for eleven months. Every time I try to run it up, it gets reassigned."</span> She looks at you. <span class="speech">"Which means someone inside this building is on the Commission's payroll. Or the Hand's."</span></p>
+<p>She pushes a folder across the table. Inside: six photographs. Five dead. One missing. All of them, you realize with a jolt, were <span class="clue">immune to the Secrecy Protocols</span>. Like you.</p>
+<p><span class="speech">"They've been collecting people like you for two years. Harmon found out why."</span> She taps the folder. <span class="speech">"The Undercurrent doesn't just run beneath Chicago. It runs through people who are immune. You're not just a journalist who stumbled into this. You're a <em>key</em>. Your immunity is structural. Without people like you, the node fails permanently."</span></p>
+<p>The room feels smaller.</p>
+<p><span class="speech">"Whoever is destabilizing the grid — they're not trying to trigger a Disclosure Event. They're trying to <span class="danger">collapse the Undercurrent</span>. And they need you to do it."</span></p>`,
+    choices: [
+      { text: 'Ask Mara who she trusts inside the department. This investigation needs protected channels.', tag: 'social', tagLabel: 'BUILD ALLIANCE', next: 'final_assembly', effect: {trust: 25, insight: 15}, log: 'Began building protected alliance with Detective Osei.' },
+      { text: '"If I\'m a key, then I\'m bait. Use me. Set a trap for whoever sent Harmon to die."', tag: 'risky', tagLabel: 'SACRIFICE PLAY', next: 'bait_trap', effect: {risk: 30, trust: 10, insight: 20}, log: 'Volunteered to act as bait for the Undercurrent saboteur.' },
+    ]
+  },
+
+  // ── CONVERGENCE: HARMON'S LETTER ──────────────
+  'harmon_letter': {
+    location: 'Pilsen Community Garden',
+    atmosphere: 'Everyone in the circle has gone still.',
+    text: `<p>The letter is three pages, handwritten. Harmon's handwriting is small and urgent.</p>
+<p>He writes about twenty years inside the Veil Commission. About slowly understanding that the Secrecy Protocols weren't just about hiding magic — they were about <span class="clue">controlling access to the Undercurrent</span>. About ensuring that only Commission-approved practitioners could draw on the ley line network, billing power to the few at the expense of the many.</p>
+<p>He writes about discovering who the Architect really is. Not a Crimson Hand operative. Not an outsider. <span class="clue">A sitting member of the Veil Commission's inner council</span>. Someone using the Hand as a proxy to destabilize the grid — not to destroy it, but to trigger a <em>controlled collapse</em>. A reset. One that would let them rebuild the Undercurrent under exclusive Commission control, more locked down than ever.</p>
+<p>The name on the last page is: <span class="emphasis">Director Adela Marsh</span>. The Commission's public liaison. The person who has spent thirty years presenting the Commission as a neutral, protective force.</p>
+<p>Sable reads over your shoulder. Her voice is steady when she says: <span class="speech">"She was at the gallery opening last Thursday. I saw her."</span></p>`,
+    choices: [
+      { text: 'Coordinate with Sable. Use the Iron Congregation\'s network to surveil Marsh before moving.', tag: 'social', tagLabel: 'PLAN TOGETHER', next: 'final_assembly', effect: {trust: 20, faction: 'iron', insight: 15}, log: 'Named Director Marsh as the Architect. Planning with Iron Congregation.' },
+      { text: 'Go public immediately. The letter is proof enough. Send it to every journalist you know.', tag: 'risky', tagLabel: 'DISCLOSURE', next: 'disclosure_ending', effect: {risk: 40, trust: -10, insight: 30}, log: 'Chose immediate public disclosure with Harmon\'s letter.' },
+    ]
+  },
+
+  'harmon_letter_solo': {
+    location: 'Your Apartment · Pilsen',
+    atmosphere: 'You read alone. The city makes its usual sounds outside.',
+    text: `<p>Alone, the letter hits differently. Harmon's fear comes through more clearly — the way his writing speeds up in the last pages, how the pen pressure changes. He was terrified. And he wrote this anyway.</p>
+<p>The name he names: <span class="emphasis">Director Adela Marsh</span>. And beside it, a warning: <span class="clue">"She has someone inside every faction. Trust no one you didn't choose yourself."</span></p>
+<p>You sit with it a long time. Then you call Sable. You don't mention the name. You ask a question about Marsh that only someone who knew would ask.</p>
+<p>Sable's silence on the phone is longer than it should be. When she speaks again, her voice has changed. <span class="speech">"How did you find out?"</span></p>`,
+    choices: [
+      { text: '"Harmon told me. And I think you already suspected. Let\'s stop pretending we\'re not on the same side."', tag: 'social', tagLabel: 'RECONCILE', next: 'final_assembly', effect: {trust: 30, faction: 'iron', insight: 10}, log: 'Reconciled with Sable after reading Harmon\'s letter alone.' },
+    ]
+  },
+
+  // ── AWAKENING ────────────────────────────────
+  'awakening': {
+    location: 'Undercurrent Node · Beneath Wicker Park',
+    atmosphere: 'The light is inside you now. You can feel the city above like a weight and a warmth.',
+    text: `<p>You don't know how long you stay. Time is different here.</p>
+<p>What happens is this: the column of light <span class="magic">recognizes you</span>. Not as a name or a person — as a shape, a pattern, a particular resonance that fits a space in the network the way a key fits a lock. The irregular pulse begins, very slowly, to stabilize around you.</p>
+<p>You understand, in a way that bypasses language entirely: <span class="clue">the Undercurrent is not just a power source. It's a record. Every practitioner who ever used it left an impression. It's a living archive of two centuries of American magic — indigenous knowledge and immigrant traditions and innovations born in specific alleys of specific cities.</span></p>
+<p>And someone is trying to <span class="danger">erase it</span>.</p>
+<p>You also understand, with sudden cold clarity, that you've been in here long enough for someone to notice. There are other signatures in the network, moving toward you. Two feel familiar. One does not.</p>`,
+    choices: [
+      { text: 'Reach toward the familiar signatures. Try to identify them — are they allies?', tag: 'magic', tagLabel: 'MAGICAL CONTACT', next: 'final_assembly', effect: {insight: 25, trust: 15, faction: 'free'}, log: 'Made magical contact within the Undercurrent. Three signatures converging.' },
+      { text: 'Get out. Now. Before the third signature reaches you.', tag: 'risky', tagLabel: 'ESCAPE', next: 'meridian_confrontation', effect: {risk: -10, insight: 20}, log: 'Fled the Undercurrent node with new knowledge. Someone was coming.' },
+    ]
+  },
+
+  // ── FINAL CONVERGENCE ─────────────────────────
+  'final_assembly': {
+    location: 'Various · 36 Hours Later',
+    atmosphere: 'The city feels different. Or maybe you do. The sigils in the sidewalk, the wards on the doors — you see them all now.',
+    text: `<p>By the time you have everything — the letter, the evidence, the notebook, the allies — thirty-six hours have passed since Harmon died.</p>
+<p>Director Adela Marsh is scheduled to speak at a Veil Commission public event tonight at the Museum of Science and Industry. A community liaison event. Hundreds of people. Press.</p>
+<p>Mara has warrants — barely. Sable has the Iron Congregation positioned around the museum's three Undercurrent access points. Ezra, who you half-believed might be working for Marsh, leaves a message: <span class="speech">"I've been waiting forty years for someone to finally do this right. Don't waste it."</span></p>
+<p>The plan is elegant and fragile. Marsh will be there. Her people will be there. The Crimson Hand has already sent operatives. And the Undercurrent is <span class="danger">forty-eight hours from catastrophic failure</span> if no one stops the corrupted sigil feed.</p>
+<p>You have three moves. You have to pick two.</p>`,
+    choices: [
+      { text: 'Move 1: Confront Marsh publicly, in front of the cameras. Force a Disclosure Event on your terms.', tag: 'risky', tagLabel: 'PUBLIC CONFRONTATION', next: 'ending_disclosure', effect: {risk: 30, trust: 20}, log: 'Chose public confrontation with Director Marsh.' },
+      { text: 'Move 1: Get to the corrupted sigil terminal. Stop the collapse. Let Mara handle Marsh.', tag: 'magic', tagLabel: 'SAVE THE UNDERCURRENT', next: 'ending_grid', effect: {insight: 20, risk: 15}, log: 'Chose to protect the Undercurrent node directly.' },
+      { text: 'Move 1: Intercept the Crimson Hand\'s operatives. Neutralize the threat before the event begins.', tag: 'investigate', tagLabel: 'TACTICAL', next: 'ending_crimson_fall', effect: {risk: 20, trust: 15}, log: 'Moved to intercept Crimson Hand before Museum confrontation.' },
+    ]
+  },
+
+  // ── ENDINGS ───────────────────────────────────
+  'ending_disclosure': {
+    location: 'Museum of Science and Industry · Chicago',
+    atmosphere: 'The lights are bright. Every phone in the room is a camera.',
+    text: `<p>You walk to the microphone before Marsh finishes her opening remarks.</p>
+<p>The room goes silent in the way that rooms do when something unrehearsed happens. Marsh's smile doesn't waver, but her eyes do.</p>
+<p>You read from Harmon's letter. You show the photographs. You name her.</p>
+<p>What happens next will be debated for years. The Undercurrent <span class="magic">pulses</span> — every person in the building feels it, whether they know what it is or not. Three Veil Commission agents move toward you. Sable's people are faster. Mara's badge clears a path. Marsh is in custody within minutes, still smiling that fixed smile.</p>
+<p>The Secrecy Protocols don't collapse — not entirely. But something shifts. People who never believed look at each other with new uncertainty. The conversation has changed.</p>
+<p>Outside, on the steps, Ezra finds you. <span class="speech">"Well,"</span> he says. <span class="speech">"That was one way to do it."</span></p>`,
+    isEnding: true,
+    endingId: 'disclosure',
+    endingTitle: 'THE LIGHT BREAKS THROUGH',
+    endingText: 'You chose transparency over safety. The world will take years to process what you started tonight. The Undercurrent is stable — barely. The Commission will rebuild, probably. But the story is out. And stories, once told, can\'t be taken back.\n\nThis is not a victory. It\'s a beginning.',
+    endingType: 'disclosure'
+  },
+
+  'ending_grid': {
+    location: 'Undercurrent Node · During the Museum Event',
+    atmosphere: 'Below the museum, in the tunnels that no one talks about. The pulse is erratic now. Violent.',
+    text: `<p>The corrupted sigil terminal is in a maintenance room three levels below the museum floor. Harmon's notebook maps it perfectly.</p>
+<p>It takes you eleven minutes and every piece of knowledge you've accumulated in two sleepless days to understand what's been done to it. It takes you four more to undo it.</p>
+<p>When the last sigil clears, the Undercurrent <span class="magic">exhales</span>. The pulse evens out. Two centuries of accumulated memory settle back into stable resonance. You feel it in your teeth, your sternum, the backs of your hands.</p>
+<p>Upstairs, Mara arrests Marsh. The cameras miss it — it happens in a corridor, quickly, professionally. The public event ends without incident. Most people go home not knowing anything happened.</p>
+<p>That's the thing about choosing the quiet solution: it works. And no one knows.</p>
+<p>Ezra calls you the next morning. <span class="speech">"The Commission wants to offer you a position."</span> A long pause. <span class="speech">"I told them you'd say no. Prove me right."</span></p>`,
+    isEnding: true,
+    endingId: 'grid',
+    endingTitle: 'THE QUIET WORK',
+    endingText: 'You saved something ancient and irreplaceable, and almost no one will know you did it. The Undercurrent hums beneath Chicago, carrying the memories of everyone who ever touched it. Marsh is charged. The Crimson Hand disperses without their Commission backing. The Freeborn Circuit keeps fighting for disclosure.\n\nThe work continues. It always does.',
+    endingType: 'grid'
+  },
+
+  'ending_crimson_fall': {
+    location: 'Museum Parking Structure · Level 3',
+    atmosphere: 'Six of them. Your allies converge from three directions. Somewhere above, the event is starting.',
+    text: `<p>The Crimson Hand operatives don't expect you to find them first. That's the advantage of two days without sleep — paranoia becomes a kind of competence.</p>
+<p>What follows is not a fight, exactly. It's a negotiation conducted under high pressure. One of the operatives — younger than the others, frightened — tells you where the sigil terminal is in exchange for Mara's protection.</p>
+<p>The rest run. You let them. This was never about the Hand's foot soldiers.</p>
+<p>The Architect — Marsh — falls at the museum. Mara and Sable working together, with the evidence you've assembled, is more than enough. The corrupted sigil feed is shut down by an Iron Congregation technician working from Harmon's notebook while you run interference.</p>
+<p>By midnight, it's over. As over as these things ever are.</p>
+<p>Sable finds you on the museum steps. <span class="speech">"You're still not affiliated,"</span> she says.</p>
+<p><span class="speech">"No,"</span> you say.</p>
+<p>She almost smiles. <span class="speech">"Good. We don't need another faction. We need people who won't choose one."</span></p>`,
+    isEnding: true,
+    endingId: 'crimson_fall',
+    endingTitle: 'THE UNAFFILIATED',
+    endingText: 'You brought down a conspiracy without becoming part of one. The Undercurrent holds. Marsh faces trial. The Crimson Hand splinters. The Iron Congregation gains legitimacy. The Veil Commission faces its first real internal audit in forty years.\n\nYou remained ungovernable. That\'s rarer than magic.',
+    endingType: 'unaffiliated'
+  },
+
+  'open_war': {
+    location: 'Chicago · Streets',
+    atmosphere: 'They follow you out of the club. You know what this means.',
+    text: `<p>You run. Not from cowardice — from calculation. You threatened the Crimson Hand openly, which means you have maybe twelve hours before they decide you're more dangerous loose than contained.</p>
+<p>Which also means you have twelve hours to make yourself too visible to touch.</p>
+<p>You call everyone: Mara, Sable, Ezra, every contact you have in journalism, in the city council, in the three activist organizations that have been circling the Meridian gallery for months without knowing why.</p>
+<p>Twelve hours. Let's see who shows up.</p>`,
+    choices: [
+      { text: 'Spend the next twelve hours building the most airtight, public-facing case you\'ve ever assembled.', tag: 'investigate', tagLabel: 'ALL IN', next: 'final_assembly', effect: {trust: 30, risk: -20, insight: 20}, log: 'Going all-in with full public campaign. Clock is ticking.' },
+    ]
+  },
+
+  'contact_made': {
+    location: 'Your Apartment · Pilsen',
+    atmosphere: 'The phone burns in your hand. Three dots. Typing.',
+    text: `<p>Three minutes pass. Then: <span class="speech">"Where are you."</span></p>
+<p>Not a question.</p>
+<p>You don't answer. You stare at the message for a long time. Then you do something Harmon didn't do: you forward the entire conversation to an encrypted drop and email it to yourself, to Mara's precinct tip line, and to a journalist colleague in DC who owes you a favor.</p>
+<p>Then you turn off the phone and go to Ezra.</p>`,
+    choices: [
+      { text: 'Go to Ezra\'s Books. The chain of custody is yours now — use it.', tag: 'investigate', tagLabel: 'CONTINUE', next: 'visit_ezra', effect: {insight: 10}, log: 'Distributed insurance copies before proceeding to Ezra\'s.' },
+    ]
+  },
+
+  'join_veil': {
+    location: 'Veil Commission Field Office · The Loop',
+    atmosphere: 'The office looks like an insurance company. The people inside it look like they\'ve seen things insurance cannot cover.',
+    text: `<p>The Commission representative is a woman named <span class="npc-name">Commissioner Priya Nair</span>. She's forty, precise, and almost certainly reading your stress levels through some kind of passive alchemy you can't see.</p>
+<p><span class="speech">"We don't usually recruit journalists,"</span> she says. <span class="speech">"But you're not really a journalist anymore. You're something we don't have a protocol for."</span></p>
+<p>She offers you a badge. A salary. Protection. Access to the Commission's archives — including everything Harmon filed before he died.</p>
+<p>She does not mention Director Marsh. Neither do you.</p>
+<p>But as she shows you to a workstation, you catch her reflection in a dark monitor, and for just a moment, her expression shows something that isn't professionalism.</p>
+<p>It looks like fear.</p>`,
+    choices: [
+      { text: 'Accept the assignment. Use the archive access to find Marsh\'s trail from the inside.', tag: 'risky', tagLabel: 'DOUBLE AGENT', next: 'final_assembly', effect: {insight: 25, risk: 20, trust: -10}, log: 'Accepted Commission position. Playing both sides. High risk.' },
+    ]
+  },
+
+  'refuse_veil': {
+    location: 'Back on the Street',
+    atmosphere: 'The sky is getting dark. Your phone has seven missed calls.',
+    text: `<p>You walk out of Ezra's shop into the early evening. The city breathes around you — <span class="magic">differently than before</span>. The wards on the brownstones, the sigils embedded in the sidewalk, the faint luminous trails that follow the ley lines under the asphalt. You see all of it now, and it doesn't frighten you.</p>
+<p>The Commission wants you manageable. The Hand wants you useful. The Congregation wants you committed.</p>
+<p>You want none of that. You want the truth about Harmon. You want the Undercurrent stable. You want the person who ordered a good man killed to face what they did.</p>
+<p>Your phone rings. Sable, from the Iron Congregation. <span class="speech">"Ezra told me you refused them. Good."</span> A pause. <span class="speech">"We found something in Harmon's apartment. You should see it."</span></p>`,
+    choices: [
+      { text: 'Go to what Sable found. You\'re unaffiliated, and that\'s a kind of power.', tag: 'social', tagLabel: 'INDEPENDENT', next: 'iron_path', effect: {trust: 15, faction: 'free'}, log: 'Refused Commission. Connected with Iron Congregation independently.' },
+    ]
+  },
+
+  'meridian_confrontation': {
+    location: 'Meridian Cultural Trust · Michigan Avenue',
+    atmosphere: 'The gallery looks beautiful. The art is real. The rest of it is architecture for something else.',
+    text: `<p>You walk in at 2 PM, press credentials in hand. The gallery is hosting a preview of something called "Threshold" — appropriate.</p>
+<p>The real installation is in the basement. You find it by following the sensation in your hands — the same resonance from the Undercurrent node, but inverted. Wrong. A machine designed to inject corrupted data into a living network.</p>
+<p>A technician you don't recognize is working at it when you arrive. He looks up. Looks at the notebook in your hands. Looks at you.</p>
+<p><span class="speech">"Harmon,"</span> he says. Then: <span class="speech">"No. Not Harmon."</span></p>
+<p>He takes a step toward the machine. You need to decide right now.</p>`,
+    choices: [
+      { text: 'Talk him down. He\'s not the Architect — he\'s an employee. Give him a way out.', tag: 'social', tagLabel: 'DE-ESCALATE', next: 'final_assembly', effect: {trust: 20, insight: 15, risk: -10}, log: 'Talked down Meridian technician. Gained key witness.' },
+      { text: 'Get between him and the machine. The network matters more than this conversation.', tag: 'magic', tagLabel: 'PROTECT THE GRID', next: 'ending_grid', effect: {insight: 20, risk: 15}, log: 'Physically protected the Undercurrent terminal. Confrontation at Meridian.' },
+    ]
+  },
+
+  'bait_trap': {
+    location: 'Museum of Science and Industry · Pre-Event',
+    atmosphere: 'You\'re wired. Mara has people in three positions. The trap is set.',
+    text: `<p>The plan is simple: you let Marsh know, through carefully indirect channels, that you have Harmon's complete files and are willing to sell them for passage out of the city. It's the kind of offer that would be irresistible to someone who killed to keep those files buried.</p>
+<p>Marsh takes the meeting herself. That tells you everything about how scared she is.</p>
+<p>What happens next is quick. Mara's team is good. The recording is clean. The case is airtight.</p>
+<p>Marsh looks at you across the room before they take her out, and her expression is not anger. It's curiosity.</p>
+<p><span class="speech">"You're not immune to the Protocols,"</span> she says. <span class="speech">"You <em>are</em> a Protocol. Did Harmon tell you that?"</span></p>
+<p>They take her away before she can say more. You stand in a museum after hours, wondering what she meant, knowing you'll spend years finding out.</p>`,
+    isEnding: true,
+    endingId: 'bait',
+    endingTitle: 'THE LONG GAME',
+    endingText: 'Marsh is in custody. The Undercurrent stabilizes. The Crimson Hand loses its Commission backing. And you have a new question to pursue — one that will take you deeper than anything Harmon knew.\n\nYou are not what you thought you were. That\'s the oldest beginning there is.',
+    endingType: 'revelation'
+  },
+
+  'photos_sent': {
+    location: 'Your Apartment · Later',
+    atmosphere: 'The phone you used is at the bottom of the Chicago River. The files are safe.',
+    text: `<p>Insurance in place, you turn your attention to the morning. You have photographs of a dead man with glowing eyes, a cryptic text message, and a city full of secrets.</p>
+<p>At 6 AM, Ezra Vance calls your landline — a number you never gave him. <span class="speech">"The photographs were received by three parties who should not have them yet. You're ahead of schedule."</span> A pause. <span class="speech">"Come to the shop. Before they start moving."</span></p>`,
+    choices: [
+      { text: 'Go to Ezra\'s Books.', tag: 'investigate', tagLabel: 'CONTINUE', next: 'visit_ezra', effect: {insight: 5}, log: 'Photos distributed. Meeting Ezra.' },
+    ]
+  },
+
+  'met_mara_with_phone': {
+    location: '13th District Precinct · 6 AM',
+    atmosphere: 'Mara looks at the phone for a long time before she puts it in an evidence bag.',
+    text: `<p><span class="speech">"You just made yourself a material witness in a murder investigation,"</span> Mara says. Then, quietly: <span class="speech">"And probably saved your own life. Whoever sent that last message was going to trace it."</span></p>
+<p>She offers you a cup of coffee that you both know is terrible, and a chair.</p>
+<p><span class="speech">"Tell me everything."</span></p>`,
+    choices: [
+      { text: 'Tell her everything you know. Start from the beginning, six months ago and the energy readings.', tag: 'social', tagLabel: 'FULL DISCLOSURE', next: 'mara_alliance', effect: {trust: 20, insight: 10, risk: -10}, log: 'Gave Detective Osei full account. Full cooperation established.' },
+    ]
+  },
+
+  'crimson_infiltrate': {
+    location: 'Various Safe Houses · 72 Hours',
+    atmosphere: 'You see how the Crimson Hand operates from the inside. It\'s worse than you imagined. And more fragile.',
+    text: `<p>Seventy-two hours in the Hand's orbit teaches you things no journalist should know and every citizen should. The artifact trade. The bound spirits sold as "consultants." The Commission officials on the payroll — not just one. Six.</p>
+<p>And the Architect. Dominic shows you a file on the third day — not realizing you can read Commission cipher from your time in Ezra's back room. The Architect's name is in it. <span class="emphasis">Director Adela Marsh.</span></p>
+<p>You photograph it with your eyes, put the phone down, and say: <span class="speech">"I've seen enough. Our arrangement is complete."</span></p>
+<p>Dominic smiles. <span class="speech">"We both know you're not walking out of here with that."</span></p>
+<p>Your phone buzzes. A message from Mara: <span class="clue">WHERE ARE YOU. NOW. WE'RE MOVING.</span></p>`,
+    choices: [
+      { text: 'Signal Mara\'s team. The 72 hours are up — and you have everything you need.', tag: 'risky', tagLabel: 'EXTRACTION', next: 'final_assembly', effect: {risk: 30, insight: 30, trust: 10}, log: 'Extracted from Crimson Hand with Director Marsh\'s identity confirmed.' },
+    ]
+  },
+
+  'disclosure_ending': {
+    location: 'The Public Record',
+    atmosphere: 'The letter goes live at 11 PM. By midnight, it\'s everywhere.',
+    text: `<p>You post Harmon's letter, the photographs, the notebook pages, and a fifteen-hundred-word piece explaining — as plainly as possible — what the Undercurrent is, what the Veil Commission does, and what Director Marsh tried to do.</p>
+<p>The first hour, nothing. Then a journalist in London picks it up. Then three more. By 3 AM, it's on the front page of digital editions across the country.</p>
+<p>The Commission issues a denial. The denial is clearly written by people who have never had to explain magic to the general public before.</p>
+<p>It does not help them.</p>
+<p>Marsh is arrested at her home at 4 AM, in handcuffs, still in her nightgown. The photograph of it wins a prize you'll never accept.</p>
+<p>The Undercurrent — for the first time in its existence — is no one's secret.</p>`,
+    isEnding: true,
+    endingId: 'full_disclosure',
+    endingTitle: 'THE STORY THAT CHANGED EVERYTHING',
+    endingText: 'This is the ending Harmon hoped someone would reach. It\'s messy and chaotic and the world isn\'t ready for it and that doesn\'t matter anymore because it\'s done.\n\nMagic is real. Chicago knows. The country is about to.\n\nYou filed the story.',
+    endingType: 'disclosure_full'
+  }
+};
+
+// ══════════════════════════════════════════════════
+//  ENGINE
+// ══════════════════════════════════════════════════
+let currentScene = 'prologue';
+let typingTimeout = null;
+
+function startGame() {
+  const titleScreen = document.getElementById('title-screen');
+  titleScreen.classList.add('fade-out');
+  setTimeout(() => titleScreen.style.display = 'none', 900);
+  loadScene('prologue');
+}
+
+function loadScene(sceneId) {
+  const scene = scenes[sceneId];
+  if (!scene) return;
+  currentScene = sceneId;
+
+  if (scene.isEnding) {
+    showEnding(scene);
+    return;
+  }
+
+  // Update location labels
+  document.getElementById('scene-location-label').textContent = scene.location;
+  document.getElementById('hud-location').textContent = scene.location.split('·')[0].trim();
+
+  // Atmosphere
+  const atmoEl = document.getElementById('scene-atmosphere');
+  atmoEl.textContent = scene.atmosphere;
+
+  // Story text with typewriter feel
+  const storyEl = document.getElementById('story-text');
+  storyEl.innerHTML = '';
+  storyEl.classList.add('fade-in');
+
+  setTimeout(() => {
+    storyEl.innerHTML = scene.text;
+    storyEl.classList.remove('fade-in');
+    void storyEl.offsetWidth;
+    storyEl.classList.add('fade-in');
+  }, 50);
+
+  // Choices
+  const choicesEl = document.getElementById('choices');
+  choicesEl.innerHTML = '';
+  if (scene.choices) {
+    scene.choices.forEach((choice, i) => {
+      const btn = document.createElement('button');
+      btn.className = 'choice-btn';
+      btn.style.animationDelay = `${i * 0.08 + 0.3}s`;
+      btn.style.opacity = '0';
+      btn.style.animation = `fadeIn 0.4s ease ${i * 0.08 + 0.3}s forwards`;
+      btn.innerHTML = `<span class="choice-tag tag-${choice.tag}">${choice.tagLabel}</span>${choice.text}`;
+      btn.onclick = () => makeChoice(choice);
+      choicesEl.appendChild(btn);
+    });
+  }
+
+  updateHUD();
+}
+
+function makeChoice(choice) {
+  // Apply effects
+  if (choice.effect) {
+    const e = choice.effect;
+    if (e.trust !== undefined) state.trust = Math.max(0, Math.min(100, state.trust + e.trust));
+    if (e.risk !== undefined) state.risk = Math.max(0, Math.min(100, state.risk + e.risk));
+    if (e.insight !== undefined) state.insight = Math.max(0, Math.min(100, state.insight + e.insight));
+    if (e.faction) {
+      state.faction = e.faction;
+      updateFactionBadge();
+    }
+    for (const key in e) {
+      if (!['trust','risk','insight','faction'].includes(key)) {
+        state.flags[key] = e[key];
+      }
+    }
+  }
+
+  // Log
+  if (choice.log) addLog(choice.log);
+
+  updateHUD();
+
+  // Navigate
+  setTimeout(() => loadScene(choice.next), 200);
+}
+
+function updateHUD() {
+  document.getElementById('bar-trust').style.width = state.trust + '%';
+  document.getElementById('val-trust').textContent = state.trust;
+  document.getElementById('bar-risk').style.width = state.risk + '%';
+  document.getElementById('val-risk').textContent = state.risk;
+  document.getElementById('bar-insight').style.width = state.insight + '%';
+  document.getElementById('val-insight').textContent = state.insight;
+
+  // Update codex stats
+  document.getElementById('codex-stats').innerHTML =
+    `Trust: ${state.trust} / Risk: ${state.risk} / Insight: ${state.insight}<br>Faction: ${state.faction}<br>Flags: ${Object.keys(state.flags).join(', ') || 'none'}`;
+}
+
+function updateFactionBadge() {
+  const badge = document.getElementById('faction-badge');
+  const labels = { none: ['badge-none','Unaffiliated'], veil: ['badge-veil','Veil Commission'], iron: ['badge-iron','Iron Congregation'], hand: ['badge-hand','Crimson Hand'], free: ['badge-free','Freeborn Circuit'] };
+  const [cls, label] = labels[state.faction] || labels.none;
+  badge.className = 'faction-badge ' + cls;
+  badge.textContent = label;
+}
+
+function addLog(text) {
+  state.log.push(text);
+  const entries = document.getElementById('log-entries');
+  const div = document.createElement('div');
+  div.className = 'log-entry';
+  const time = new Date().toLocaleTimeString('en-US', {hour:'2-digit', minute:'2-digit'});
+  div.innerHTML = `<span>${time}</span> — ${text}`;
+  entries.appendChild(div);
+  entries.scrollTop = entries.scrollHeight;
+}
+
+function showEnding(scene) {
+  document.getElementById('scene-container').style.display = 'none';
+  document.getElementById('log-panel').style.display = 'none';
+
+  const endScreen = document.getElementById('ending-screen');
+  endScreen.classList.add('visible');
+  document.getElementById('ending-title').textContent = scene.endingTitle;
+  document.getElementById('ending-text').textContent = scene.endingText;
+
+  // Also show the scene text above
+  endScreen.insertAdjacentHTML('afterbegin', `
+    <div style="max-width:600px; text-align:left; color:var(--text); margin-bottom:40px; font-size:17px; line-height:1.9">
+      <div class="scene-location" style="text-align:center">${scene.location}</div>
+      <div class="scene-atmosphere">${scene.atmosphere}</div>
+      ${scene.text}
+    </div>
+    <div class="ornate-divider">· · ·</div>
+  `);
+
+  addLog(`ENDING: ${scene.endingTitle}`);
+
+  showNotification('Story complete. ' + scene.endingTitle);
+}
+
+function resetGame() {
+  state = { trust: 50, risk: 10, insight: 20, chapter: 1, faction: 'none', flags: {}, log: [], characterName: 'the Investigator' };
+  document.getElementById('log-entries').innerHTML = '';
+  document.getElementById('ending-screen').classList.remove('visible');
+  document.getElementById('ending-screen').innerHTML = `<div class="ending-title" id="ending-title"></div><div class="ending-text" id="ending-text"></div><button class="replay-btn" onclick="resetGame()">Begin Again</button>`;
+  document.getElementById('scene-container').style.display = '';
+  document.getElementById('log-panel').style.display = '';
+  updateFactionBadge();
+  updateHUD();
+  loadScene('prologue');
+}
+
+function toggleCodex() {
+  document.getElementById('codex-panel').classList.toggle('open');
+}
+
+function showNotification(msg) {
+  const n = document.getElementById('notification');
+  n.textContent = msg;
+  n.classList.add('show');
+  setTimeout(() => n.classList.remove('show'), 3500);
+}
+</script>
+</body>
+</html>
