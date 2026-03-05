@@ -1205,6 +1205,23 @@
       </div>
     </div>
 
+    <div class="game-card" data-cat="action" onclick="playWrestling()">
+      <div class="card-visual" style="background: linear-gradient(135deg,#2a0a0f,#1a0f1a);">
+        <div class="card-overlay"></div>
+        <span class="card-badge badge-new">✨ NEW</span>
+        <div class="card-icon" style="--c:#ff3333">💪</div>
+      </div>
+      <div class="card-body">
+        <div class="card-title">WRESTLING SHOWDOWN</div>
+        <div class="card-desc">Intense wrestling matches with dynamic combat and stunning moves!</div>
+        <div class="card-dev">👨‍💻 Marc Joshua</div>
+        <div class="card-footer">
+          <span class="card-players">👤 Solo</span>
+          <div class="card-difficulty"><div class="diff-dot active hard"></div><div class="diff-dot active hard"></div><div class="diff-dot active hard"></div></div>
+        </div>
+      </div>
+    </div>
+
   </div>
 
   <!-- BOTTOM SECTION -->
@@ -1362,6 +1379,10 @@
 
   function playUrbanFantasy() {
     window.location.href = 'urban-fantasy-game.html';
+  }
+
+  function playWrestling() {
+    window.location.href = 'wrestling-showdown.html';
   }
 
   document.getElementById('modalPlayBtn').onclick = function() {
