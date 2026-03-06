@@ -204,24 +204,64 @@ function makeShopCust(id){
 
 // ── SPORTS STATE ──
 // Tennis
+// ── TENNIS STATE (top-down court, proper rules) ──
 let tennisState = {
-  active: false,
-  ballX: 0, ballY: 0, ballVX: 3.5, ballVY: 2.2,
-  ballSize: 7,
-  playerScore: 0, aiScore: 0,
-  paddleY: 0,  // player paddle Y (left side)
-  aiPaddleY: 0,
-  paddleH: 50, paddleW: 12,
-  courtW: 0, courtH: 0,
-  courtX: 0, courtY: 0,
-  serving: true, serveTimer: 90,
-  rally: 0, highRally: 0,
-  lastHit: '',
-  result: null, // 'won'/'lost'
-  aiSpeed: 2.6,
-  spinX: 0, spinY: 0,
-  hitFlash: 0,
-  netBounce: false,
+  // Court geometry (set on init)
+  cX:0, cY:0, cW:0, cH:0,    // court rect (inner playable area)
+  netX:0,                      // net X = cX + cW/2
+  // Ball (world coords inside court)
+  bX:0, bY:0, bVX:0, bVY:0,
+  bZ:0, bVZ:0,                 // height for 3-D arc
+  bR:7,                        // ball radius
+  bounceCount:0,               // bounces by last hitter's opponent
+  lastHitter:'',               // 'player' or 'ai'
+  // Player character on court
+  pX:0, pY:0, pSpd:3.4,
+  pAnimT:0, pFrame:0,
+  pHitCD:0,                    // cooldown after swing
+  pSwing:false, pSwingT:0,     // swing animation
+  // AI character on court
+  aiX:0, aiY:0, aiSpd:2.8,
+  aiAnimT:0, aiFrame:0,
+  aiHitCD:0,
+  aiSwing:false, aiSwingT:0,
+  // Scoring (proper tennis)
+  // Points: 0=Love,1=15,2=30,3=40,4=Game (Deuce logic)
+  pPoints:0, aiPoints:0,       // raw point count this game
+  pGames:0, aiGames:0,         // games in current set
+  pSets:0, aiSets:0,           // sets won
+  deuce:false, advantage:'',   // 'player'|'ai'|''
+  inTiebreak:false,
+  tbPPoints:0, tbAiPoints:0,
+  // Match config: best of 3 sets
+  setsToWin:2,
+  // Serve
+  server:'player',             // who serves next point
+  serveState:'pre',            // 'pre'|'toss'|'rally'|'pointover'
+  serveFault:0,                // 0 or 1 (first/second fault)
+  serveBox:'',                 // which service box ball must land in
+  tossBall:false, tossT:0,     // toss animation
+  tossX:0, tossY:0, tossZ:0, tossVZ:0,
+  serveHit:false,
+  // Rally
+  inRally:false,
+  // Point result message
+  pointMsg:'', pointMsgT:0,
+  // Match result
+  matchResult:'',              // ''|'won'|'lost'
+  // Hit flash
+  hitFlash:0,
+  // Ball trail
+  trail:[],
+  // Ball in play (false = dead ball, waiting)
+  ballActive:false,
+  // Countdown before next point
+  nextPointT:0,
+  // Swing key buffered
+  swingQueued:false,
+  // AI state
+  aiState:'position',          // 'position'|'approach'|'swing'
+  aiReactT:0,
 };
 
 // Basketball
@@ -457,364 +497,759 @@ function drawBballCourt(cx, cy){
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
-// ── TENNIS MINIGAME ──
+// ── TENNIS MINIGAME — side-view, ATP scoreboard style ──
+// Layout: SIDE VIEW. Court runs left-right. Net in center. Ground is a line.
+// Ball moves in X (left-right) and Y (up = ball height). Smooth arcs.
+// Player runs left-right on LEFT baseline. AI on RIGHT baseline.
 // ──────────────────────────────────────────────────────────────────────────────
+
+const POINT_LABELS=['0','15','30','40'];
+function tennisPointLabel(p){ return POINT_LABELS[Math.min(p,3)]; }
+
+function tennisAwardPoint(winner){
+  const ts=tennisState;
+  ts.ballActive=false;
+  ts.phase='pointover';
+  ts.nextPointT=110;
+
+  if(ts.inTiebreak){
+    if(winner==='player') ts.tbPPoints++; else ts.tbAiPoints++;
+    const pp=ts.tbPPoints, ap=ts.tbAiPoints;
+    if((pp>=7||ap>=7)&&Math.abs(pp-ap)>=2){
+      tennisAwardGame(winner,true); return;
+    }
+    ts.pointMsg=(winner==='player'?'YOUR POINT  ':'CPU POINT  ')+pp+'-'+ap+' TB';
+    ts.pointMsgT=90; ts.serveFault=0;
+    ts.server=((pp+ap)%2===1)?(ts.server==='player'?'ai':'player'):ts.server;
+    return;
+  }
+
+  if(winner==='player') ts.pPoints++; else ts.aiPoints++;
+  const pp=ts.pPoints, ap=ts.aiPoints;
+
+  if(pp>=3&&ap>=3){
+    if(pp===ap){ ts.deuce=true; ts.advantage=''; ts.pointMsg='DEUCE'; }
+    else if(ts.deuce||ts.advantage){
+      if(ts.advantage===winner){ tennisAwardGame(winner); return; }
+      else if(ts.advantage){ ts.advantage=''; ts.deuce=true; ts.pointMsg='DEUCE'; }
+      else { ts.advantage=winner; ts.deuce=false; ts.pointMsg='ADV '+(winner==='player'?'YOU':'CPU'); }
+    } else { ts.advantage=winner; ts.deuce=false; ts.pointMsg='ADV '+(winner==='player'?'YOU':'CPU'); }
+    ts.pointMsgT=90; ts.serveFault=0;
+  } else if(pp>=4){ tennisAwardGame('player'); return; }
+  else if(ap>=4){ tennisAwardGame('ai'); return; }
+  else {
+    ts.pointMsg=(winner==='player'?'YOUR POINT!  ':'CPU POINT!  ')+tennisPointLabel(pp)+' - '+tennisPointLabel(ap);
+    ts.pointMsgT=90; ts.serveFault=0;
+  }
+}
+
+function tennisAwardGame(winner, fromTB=false){
+  const ts=tennisState;
+  if(winner==='player') ts.pGames++; else ts.aiGames++;
+  ts.pPoints=0; ts.aiPoints=0; ts.deuce=false; ts.advantage='';
+  ts.server=(ts.server==='player'?'ai':'player');
+  ts.serveFault=0;
+  const pg=ts.pGames, ag=ts.aiGames;
+  ts.pointMsg='GAME '+(winner==='player'?'YOU':'CPU')+'!   '+pg+' - '+ag;
+  ts.pointMsgT=120;
+  if(pg===6&&ag===6&&!fromTB){ ts.inTiebreak=true; ts.tbPPoints=0; ts.tbAiPoints=0; ts.pointMsg='TIEBREAK! 6-6'; ts.pointMsgT=130; return; }
+  if((pg>=6||ag>=6)&&Math.abs(pg-ag)>=2){ tennisAwardSet(winner); return; }
+  if(pg===7||ag===7){ tennisAwardSet(winner); }
+}
+
+function tennisAwardSet(winner){
+  const ts=tennisState;
+  if(winner==='player') ts.pSets++; else ts.aiSets++;
+  ts.pGames=0; ts.aiGames=0;
+  ts.pointMsg='SET '+(winner==='player'?'YOU':'CPU')+'!   '+ts.pSets+' - '+ts.aiSets+' sets';
+  ts.pointMsgT=160;
+  if(ts.pSets>=2){ ts.matchResult='won'; coins+=50; addMsg('🏆 Match Won! +50🪙'); updateHUD(); }
+  else if(ts.aiSets>=2){ ts.matchResult='lost'; coins+=10; addMsg('😔 Match Lost. +10🪙'); updateHUD(); }
+}
+
 function initTennis(){
   SCENE='tennis';
-  const cw=Math.min(W*0.88, 700), ch=Math.min(H*0.72, 440);
-  const cx=(W-cw)/2, cy=(H-ch)/2+20;
-  tennisState.courtW=cw; tennisState.courtH=ch;
-  tennisState.courtX=cx; tennisState.courtY=cy;
-  tennisState.ballX=cx+cw/2; tennisState.ballY=cy+ch/2;
-  tennisState.paddleY=cy+ch/2;
-  tennisState.aiPaddleY=cy+ch/2;
-  tennisState.playerScore=0; tennisState.aiScore=0;
-  tennisState.serving=true; tennisState.serveTimer=80;
-  tennisState.rally=0; tennisState.highRally=0;
-  tennisState.result=null;
-  tennisState.ballVX=3.5; tennisState.ballVY=1.8;
-  tennisState.hitFlash=0;
-  addMsg('🎾 TENNIS! W/S to move paddle. Rally to score!');
+  const ts=tennisState;
+  // Court geometry (top-down, world coords within canvas)
+ts.cX=W*0.22; ts.cY=H*0.10;
+  ts.cW=W*0.56; ts.cH=H*0.80;
+  ts.netY=ts.cY+ts.cH/2; // net is horizontal line across middle
+
+  // Ball starts center
+  ts.bX=ts.cX+ts.cW/2; ts.bY=ts.cY+ts.cH*0.75;
+  ts.bVX=0; ts.bVY=0;
+  ts.ballActive=false; ts.trail=[];
+
+  // Player at bottom baseline
+  ts.pX=ts.cX+ts.cW/2; ts.pY=ts.cY+ts.cH-30;
+  ts.pSwing=false; ts.pSwingT=0; ts.pHitCD=0;
+  ts.pFrame=0; ts.pAnimT=0;
+
+  // AI at top baseline
+  ts.aiX=ts.cX+ts.cW/2; ts.aiY=ts.cY+30;
+  ts.aiSwing=false; ts.aiSwingT=0; ts.aiHitCD=0;
+  ts.aiFrame=0; ts.aiAnimT=0; ts.aiServeDelay=0;
+
+  ts.pPoints=0; ts.aiPoints=0;
+  ts.pGames=0;  ts.aiGames=0;
+  ts.pSets=0;   ts.aiSets=0;
+  ts.deuce=false; ts.advantage=''; ts.inTiebreak=false;
+  ts.tbPPoints=0; ts.tbAiPoints=0;
+
+  ts.matchResult='';
+  ts.server='player'; ts.serveFault=0;
+  ts.phase='pre';
+  ts.nextPointT=0; ts.swingQueued=false;
+  ts.pointMsg='YOU SERVE — PRESS SPACE'; ts.pointMsgT=999;
+  ts.hitFlash=0;
+  addMsg('🎾 TENNIS! A/D=move left/right  W/S=move up/down  SPACE=serve & hit');
+}
+
+// Fire ball with velocity (top-down, no arc needed)
+function tFireBallVel(x, y, vx, vy, hitter){
+  const ts=tennisState;
+  ts.bX=x; ts.bY=y;
+  ts.bVX=vx; ts.bVY=vy;
+  ts.ballActive=true;
+  ts.lastHitter=hitter;
+  ts.bounceCount=0;
+  ts.trail=[];
+}
+
+function tServe(hitter){
+  const ts=tennisState;
+  const sx= hitter==='player'?ts.pX:ts.aiX;
+  const sy= hitter==='player'?ts.pY:ts.aiY;
+  // Aim toward opponent's side with slight randomness
+  const targetX=ts.cX+ts.cW*(0.2+Math.random()*0.6);
+  const targetY=hitter==='player'
+    ? ts.netY-(ts.netY-ts.cY)*(0.3+Math.random()*0.5)
+    : ts.netY+(ts.cY+ts.cH-ts.netY)*(0.3+Math.random()*0.5);
+  const dx=targetX-sx, dy=targetY-sy;
+  const dist=Math.hypot(dx,dy);
+  const spd=4.5+Math.random()*1.5;
+  tFireBallVel(sx,sy, dx/dist*spd, dy/dist*spd, hitter);
+}
+
+function tRally(hitter){
+  const ts=tennisState;
+  const sx=hitter==='player'?ts.pX:ts.aiX;
+  const sy=hitter==='player'?ts.pY:ts.aiY;
+  // Aim deep into opponent's half
+  const targetX=ts.cX+ts.cW*(0.15+Math.random()*0.7);
+  const targetY=hitter==='player'
+    ? ts.cY+ts.cH*(0.05+Math.random()*0.35)
+    : ts.cY+ts.cH*(0.6+Math.random()*0.35);
+  const dx=targetX-sx, dy=targetY-sy;
+  const dist=Math.hypot(dx,dy);
+  const spd=4.0+Math.random()*2.0;
+  tFireBallVel(sx,sy, dx/dist*spd, dy/dist*spd, hitter);
 }
 
 function updateTennis(){
   const ts=tennisState;
-  const {courtX:cx,courtY:cy,courtW:cw,courtH:ch,paddleW:pw,paddleH:ph}=ts;
+  if(ts.matchResult) return;
+  if(ts.pointMsgT>0) ts.pointMsgT--;
+  if(ts.hitFlash>0) ts.hitFlash--;
 
-  if(ts.serving){
-    ts.serveTimer--;
-    ts.ballX=cx+pw+20; ts.ballY=ts.paddleY;
-    if(ts.serveTimer<=0){
-      ts.serving=false;
-      ts.ballVX=4+Math.random()*2;
-      ts.ballVY=(Math.random()-.5)*4;
+  if(ts.phase==='pointover'){
+    ts.nextPointT--;
+    if(ts.nextPointT<=0){
+      ts.phase='pre';
+      ts.pX=ts.cX+ts.cW/2; ts.pY=ts.cY+ts.cH-30;
+      ts.aiX=ts.cX+ts.cW/2; ts.aiY=ts.cY+30;
+      ts.ballActive=false;
+      ts.pointMsg=(ts.server==='player'?'YOU SERVE':'CPU SERVES')+' — PRESS SPACE';
+      ts.pointMsgT=999;
     }
-    if(ts.hitFlash>0) ts.hitFlash--;
     return;
   }
-  if(ts.result) return;
 
-  // Player paddle
-  const spd=3.8;
-  if(keys['ArrowUp']||keys['w']||keys['W']) ts.paddleY=Math.max(cy+ph/2,ts.paddleY-spd);
-  if(keys['ArrowDown']||keys['s']||keys['S']) ts.paddleY=Math.min(cy+ch-ph/2,ts.paddleY+spd);
+  // Player movement (full 4-direction top-down)
+  let pmx=0, pmy=0;
+  if(keys['ArrowLeft']||keys['a']||keys['A'])  pmx=-ts.pSpd;
+  if(keys['ArrowRight']||keys['d']||keys['D']) pmx= ts.pSpd;
+  if(keys['ArrowUp']||keys['w']||keys['W'])    pmy=-ts.pSpd;
+  if(keys['ArrowDown']||keys['s']||keys['S'])  pmy= ts.pSpd;
+  if(pmx&&pmy){pmx*=0.707;pmy*=0.707;}
+  // Player confined to bottom half
+  ts.pX=Math.max(ts.cX+8, Math.min(ts.cX+ts.cW-8, ts.pX+pmx));
+  ts.pY=Math.max(ts.netY+8, Math.min(ts.cY+ts.cH-8, ts.pY+pmy));
+  if(pmx||pmy){ ts.pAnimT++; if(ts.pAnimT%6===0) ts.pFrame=(ts.pFrame+1)%4; }
+  if(ts.pHitCD>0) ts.pHitCD--;
+  if(ts.pSwing){ ts.pSwingT++; if(ts.pSwingT>14){ts.pSwing=false;ts.pSwingT=0;} }
 
-  // AI paddle
-  const aiTarget=ts.ballY;
-  const aiDiff=aiTarget-ts.aiPaddleY;
-  ts.aiPaddleY+=Math.sign(aiDiff)*Math.min(Math.abs(aiDiff),ts.aiSpeed+ts.rally*0.04);
-  ts.aiPaddleY=Math.max(cy+ph/2,Math.min(cy+ch-ph/2,ts.aiPaddleY));
-
-  // Ball movement
-  ts.ballX+=ts.ballVX;
-  ts.ballY+=ts.ballVY;
-
-  // Top/bottom bounce
-  if(ts.ballY<=cy+ts.ballSize){ ts.ballY=cy+ts.ballSize; ts.ballVY=Math.abs(ts.ballVY); }
-  if(ts.ballY>=cy+ch-ts.ballSize){ ts.ballY=cy+ch-ts.ballSize; ts.ballVY=-Math.abs(ts.ballVY); }
-
-  // Player paddle (left)
-  const px=cx+pw;
-  if(ts.ballVX<0&&ts.ballX<=px+ts.ballSize&&ts.ballX>=px-4&&Math.abs(ts.ballY-ts.paddleY)<ph/2+ts.ballSize){
-    ts.ballVX=Math.abs(ts.ballVX)*(1.04+ts.rally*0.01);
-    ts.ballVY=(ts.ballY-ts.paddleY)/ph*7+(Math.random()-.5)*1.5;
-    ts.rally++;
-    if(ts.rally>ts.highRally) ts.highRally=ts.rally;
-    ts.lastHit='player';
-    ts.hitFlash=8;
-    sndTennisHit();
+  // AI tracks ball X, stays in top half
+  if(ts.ballActive){
+    const aiTargetX=ts.bX;
+    const aiTargetY=ts.aiY; // just track horizontally for now
+    const adx=aiTargetX-ts.aiX;
+    ts.aiX+=Math.sign(adx)*Math.min(Math.abs(adx), ts.aiSpd);
   }
-  // AI paddle (right)
-  const ax=cx+cw-pw;
-  if(ts.ballVX>0&&ts.ballX>=ax-ts.ballSize&&ts.ballX<=ax+4&&Math.abs(ts.ballY-ts.aiPaddleY)<ph/2+ts.ballSize){
-    ts.ballVX=-Math.abs(ts.ballVX)*(1.02);
-    ts.ballVY=(ts.ballY-ts.aiPaddleY)/ph*6+(Math.random()-.5)*1.5;
-    ts.rally++;
-    ts.lastHit='ai';
-    sndTennisHit();
-  }
+  ts.aiX=Math.max(ts.cX+8, Math.min(ts.cX+ts.cW-8, ts.aiX));
+  ts.aiY=Math.max(ts.cY+8, Math.min(ts.netY-8, ts.aiY));
+  if(ts.aiHitCD>0) ts.aiHitCD--;
+  if(ts.aiSwing){ ts.aiSwingT++; if(ts.aiSwingT>14){ts.aiSwing=false;ts.aiSwingT=0;} }
+  ts.aiAnimT++; if(ts.aiAnimT%6===0) ts.aiFrame=(ts.aiFrame+1)%4;
 
-  // Net check — light net interaction
-  const netX=cx+cw/2;
-  if(ts.ballX>netX-3&&ts.ballX<netX+3&&ts.ballY>cy+ch*0.08&&ts.ballY<cy+ch*0.92){
-    ts.ballVX*=-1; ts.netBounce=true;
-  }
-
-  // Scoring
-  if(ts.ballX<cx-10){
-    ts.aiScore++; sndTennisScore(false);
-    addFloat2(W/2,H/2,'AI scores! 😮','#e94560');
-    resetTennisBall(-1);
-  }
-  if(ts.ballX>cx+cw+10){
-    ts.playerScore++; sndTennisScore(true);
-    addFloat2(W/2,H/2,'You score! 🎾','#4ade80');
-    resetTennisBall(1);
+  // Pre-phase: wait for serve
+  if(ts.phase==='pre'){
+    if(ts.server==='ai'){
+      ts.aiServeDelay=(ts.aiServeDelay||0)+1;
+      if(ts.aiServeDelay>80){
+        ts.aiServeDelay=0;
+        ts.phase='rally';
+        ts.pointMsg=''; ts.pointMsgT=0;
+        ts.aiSwing=true; ts.aiSwingT=0;
+        tServe('ai');
+        sndTennisHit();
+      }
+    }
+    if(ts.swingQueued||keys[' ']){
+      ts.swingQueued=false;
+      if(ts.server==='player'){
+        ts.aiServeDelay=0;
+        ts.phase='rally';
+        ts.pointMsg=''; ts.pointMsgT=0;
+        ts.pSwing=true; ts.pSwingT=0;
+        tServe('player');
+        sndTennisHit();
+      }
+    }
+    return;
   }
 
-  // Win at 7
-  if(ts.playerScore>=7){ ts.result='won'; coins+=30; addMsg('🏆 Tennis Won! +30🪙'); updateHUD(); }
-  if(ts.aiScore>=7){ ts.result='lost'; coins+=5; addMsg('😔 Tennis Lost. +5🪙 for trying!'); updateHUD(); }
+  // Rally: move ball
+  if(ts.phase==='rally'&&ts.ballActive){
+    // Trail
+    ts.trail.push({x:ts.bX,y:ts.bY});
+    if(ts.trail.length>16) ts.trail.shift();
 
-  if(ts.hitFlash>0) ts.hitFlash--;
-}
+    ts.bX+=ts.bVX;
+    ts.bY+=ts.bVY;
 
-function resetTennisBall(dir){
-  const ts=tennisState;
-  ts.ballX=ts.courtX+ts.courtW/2; ts.ballY=ts.courtY+ts.courtH/2;
-  ts.serving=true; ts.serveTimer=70; ts.rally=0;
-  ts.ballVX=dir>0 ? -(3.5+Math.random()) : (3.5+Math.random());
-  ts.ballVY=(Math.random()-.5)*3;
+    // Wall bounces (left/right sidelines)
+    if(ts.bX<=ts.cX+6){   ts.bX=ts.cX+6;   ts.bVX=Math.abs(ts.bVX); sndTennisBounce(); }
+    if(ts.bX>=ts.cX+ts.cW-6){ ts.bX=ts.cX+ts.cW-6; ts.bVX=-Math.abs(ts.bVX); sndTennisBounce(); }
+
+    // ── Ball in PLAYER'S half (bottom) ──
+    if(ts.bY>ts.netY && ts.lastHitter!=='player'){
+      // Check if out past baseline
+      if(ts.bY>=ts.cY+ts.cH){
+        ts.pointMsg='OUT! CPU scores'; ts.pointMsgT=90;
+        sndTennisScore(false); tennisAwardPoint('ai'); return;
+      }
+      // Player hit detection
+      const distToPlayer=Math.hypot(ts.bX-ts.pX, ts.bY-ts.pY);
+      if(distToPlayer<28&&(ts.swingQueued||keys[' '])&&ts.pHitCD===0){
+        ts.swingQueued=false;
+        ts.pSwing=true; ts.pSwingT=0; ts.pHitCD=20; ts.hitFlash=8;
+        sndTennisHit();
+        tRally('player');
+        return;
+      }
+      // Ball passed player without being hit
+      if(ts.bY>ts.cY+ts.cH+10){
+        ts.pointMsg='MISSED! CPU scores'; ts.pointMsgT=90;
+        sndTennisScore(false); tennisAwardPoint('ai'); return;
+      }
+    }
+
+    // ── Ball in AI'S half (top) ──
+    if(ts.bY<ts.netY && ts.lastHitter!=='ai'){
+      // Out past AI baseline
+      if(ts.bY<=ts.cY){
+        ts.pointMsg='OUT! YOUR point'; ts.pointMsgT=90;
+        sndTennisScore(true); tennisAwardPoint('player'); return;
+      }
+      // AI hit detection
+      const distToAi=Math.hypot(ts.bX-ts.aiX, ts.bY-ts.aiY);
+      if(distToAi<34&&ts.aiHitCD===0){
+        ts.aiSwing=true; ts.aiSwingT=0; ts.aiHitCD=22;
+        sndTennisHit();
+        tRally('ai');
+        return;
+      }
+      // Ball passed AI
+      if(ts.bY<ts.cY-10){
+        ts.pointMsg='CPU missed! YOUR point'; ts.pointMsgT=90;
+        sndTennisScore(true); tennisAwardPoint('player'); return;
+      }
+    }
+
+    // Net check — ball crosses net going wrong way or clips it
+    if(ts.lastHitter==='player'&&ts.bY<ts.netY-4&&ts.bVY<0){
+      // Good — ball crossed net going up (toward AI)
+    } else if(ts.lastHitter==='ai'&&ts.bY>ts.netY+4&&ts.bVY>0){
+      // Good — ball crossed net going down (toward player)
+    } else if(Math.abs(ts.bY-ts.netY)<5 && ts.bVY===0){
+      // Rare stall — nudge
+      ts.bVY+=0.1;
+    }
+  }
 }
 
 function drawTennisGame(){
   const ts=tennisState;
-  const {courtX:cx,courtY:cy,courtW:cw,courtH:ch,paddleW:pw,paddleH:ph}=ts;
+  const {cX,cY,cW,cH,netY}=ts;
 
   // Background
-  R(0,0,W,H,'#0a1628');
-  // Starfield
-  for(let i=0;i<80;i++){
-    const sx=(i*173)%W, sy=(i*97)%H;
-    ctx.fillStyle=`rgba(255,255,255,${0.2+Math.sin(i+gameTime*0.003)*0.15})`;
-    ctx.fillRect(~~sx,~~sy,1,1);
-  }
+  R(0,0,W,H,'#1a2e0a');
 
-  // Court surface
-  R(cx, cy, cw, ch, '#1a6b3a');
-  // Lines
-  ctx.strokeStyle='rgba(255,255,255,0.85)'; ctx.lineWidth=2;
-  O(cx+2,cy+2,cw-4,ch-4,'rgba(255,255,255,0.7)',1.5);
-  // Net
-  const netX=cx+cw/2;
-  R(netX-2, cy, 4, ch, '#9ca3af');
-  for(let ni=0;ni<ch;ni+=8){ ctx.fillStyle=ni%16===0?'rgba(255,255,255,0.6)':'rgba(255,255,255,0.2)'; ctx.fillRect(~~netX-2,~~(cy+ni),4,6); }
+  // ── Top-down court surface ──
+  // Shadow
+  R(cX+6,cY+6,cW,cH,'rgba(0,0,0,0.35)');
+  // Court (hard blue)
+  R(cX,cY,cW,cH,'#1a56a0');
+  // Court outline
+  O(cX,cY,cW,cH,'#fff',3);
+
+  // Sidelines inner (doubles sideline inset)
+  const sl=cW*0.07;
+  ctx.strokeStyle='rgba(255,255,255,0.55)'; ctx.lineWidth=1.5;
+  ctx.beginPath();ctx.moveTo(~~(cX+sl),~~cY);ctx.lineTo(~~(cX+sl),~~(cY+cH));ctx.stroke();
+  ctx.beginPath();ctx.moveTo(~~(cX+cW-sl),~~cY);ctx.lineTo(~~(cX+cW-sl),~~(cY+cH));ctx.stroke();
 
   // Service boxes
-  ctx.strokeStyle='rgba(255,255,255,0.5)'; ctx.lineWidth=1.5;
-  const svc=ch*0.28;
-  ctx.beginPath(); ctx.moveTo(~~cx,~~(cy+svc)); ctx.lineTo(~~(cx+cw),~~(cy+svc)); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(~~cx,~~(cy+ch-svc)); ctx.lineTo(~~(cx+cw),~~(cy+ch-svc)); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(~~netX,~~(cy+svc)); ctx.lineTo(~~netX,~~(cy+ch-svc)); ctx.stroke();
+  const svc=cH*0.22;
+  ctx.strokeStyle='#fff'; ctx.lineWidth=1.5;
+  // Top service line
+  ctx.beginPath();ctx.moveTo(~~(cX+sl),~~(cY+svc));ctx.lineTo(~~(cX+cW-sl),~~(cY+svc));ctx.stroke();
+  // Bottom service line
+  ctx.beginPath();ctx.moveTo(~~(cX+sl),~~(cY+cH-svc));ctx.lineTo(~~(cX+cW-sl),~~(cY+cH-svc));ctx.stroke();
+  // Center service line (top half)
+  ctx.beginPath();ctx.moveTo(~~(cX+cW/2),~~cY);ctx.lineTo(~~(cX+cW/2),~~netY);ctx.stroke();
+  // Center service line (bottom half)
+  ctx.beginPath();ctx.moveTo(~~(cX+cW/2),~~netY);ctx.lineTo(~~(cX+cW/2),~~(cY+cH));ctx.stroke();
+  // Center mark at baselines
+  ctx.beginPath();ctx.moveTo(~~(cX+cW/2-8),~~cY);ctx.lineTo(~~(cX+cW/2+8),~~cY);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(~~(cX+cW/2-8),~~(cY+cH));ctx.lineTo(~~(cX+cW/2+8),~~(cY+cH));ctx.stroke();
 
-  // Hit flash effect
-  if(ts.hitFlash>0){
-    ctx.fillStyle=`rgba(255,255,100,${ts.hitFlash/8*0.15})`;
-    ctx.fillRect(~~cx,~~cy,~~cw,~~ch);
+  // ── Net (horizontal band) ──
+  R(cX-4, netY-4, cW+8, 8, '#334155');
+  // Net mesh lines
+  ctx.strokeStyle='rgba(220,230,240,0.7)'; ctx.lineWidth=1;
+  for(let ni=0;ni<cW;ni+=12){
+    ctx.beginPath();ctx.moveTo(~~(cX+ni),~~(netY-4));ctx.lineTo(~~(cX+ni),~~(netY+4));ctx.stroke();
+  }
+  // Net top white band
+  R(cX-4, netY-5, cW+8, 3, '#e2e8f0');
+  // Net posts
+  R(cX-8,netY-12,8,24,'#94a3b8');
+  R(cX+cW,netY-12,8,24,'#94a3b8');
+
+// Green surround
+  R(0,0,W,cY,'#15803d'); // top
+  R(0,cY+cH,W,H-cY-cH,'#15803d'); // bottom
+  R(0,cY,cX,cH,'#15803d'); // left
+  R(cX+cW,cY,W-cX-cW,cH,'#15803d'); // right
+  // Baseline labels on green
+  T('CPU SIDE', cX+cW/2-28, cY-6, '#4ade80', 5);
+  T('YOUR SIDE', cX+cW/2-30, cY+cH+14, '#93c5fd', 5);
+
+  // ── Ball trail ──
+  ts.trail.forEach((tp,i)=>{
+    const f=i/ts.trail.length;
+    ctx.globalAlpha=f*0.5;
+    C2(tp.x,tp.y,Math.max(2,6*f),'#cfff00');
+    ctx.globalAlpha=1;
+  });
+
+  // ── Ball ──
+  if(ts.ballActive){
+    ctx.shadowColor='#ccff00'; ctx.shadowBlur=12;
+    C2(ts.bX,ts.bY,8,'#d9ff00');
+    ctx.shadowBlur=0;
+    C2(ts.bX-2,ts.bY-2,3,'rgba(255,255,220,0.8)');
   }
 
-  // Player paddle (left) - gradient
-  const pGrad=ctx.createLinearGradient(cx+2,0,cx+pw+2,0);
-  pGrad.addColorStop(0,'#3b82f6'); pGrad.addColorStop(1,'#1d4ed8');
-  ctx.fillStyle=pGrad;
-  ctx.fillRect(~~(cx+2),~~(ts.paddleY-ph/2),~~pw,~~ph);
-  O(cx+2,ts.paddleY-ph/2,pw,ph,'#93c5fd',1.5);
+  // ── Hit flash ──
+  if(ts.hitFlash>0){
+    ctx.fillStyle=`rgba(220,255,80,${ts.hitFlash/8*0.15})`;
+    ctx.fillRect(0,0,W,H);
+  }
 
-  // AI paddle (right)
-  const aGrad=ctx.createLinearGradient(cx+cw-pw-2,0,cx+cw-2,0);
-  aGrad.addColorStop(0,'#ef4444'); aGrad.addColorStop(1,'#b91c1c');
-  ctx.fillStyle=aGrad;
-  ctx.fillRect(~~(cx+cw-pw-2),~~(ts.aiPaddleY-ph/2),~~pw,~~ph);
-  O(cx+cw-pw-2,ts.aiPaddleY-ph/2,pw,ph,'#fca5a5',1.5);
+  // ── SPACE hit prompt — show when ball approaching player ──
+  if(ts.phase==='rally'&&ts.ballActive&&ts.lastHitter!=='player'){
+    const dist=Math.hypot(ts.bX-ts.pX, ts.bY-ts.pY);
+    if(dist<60){
+      const pulse=0.6+Math.sin(Date.now()*0.02)*0.4;
+      ctx.globalAlpha=pulse;
+      R(ts.pX-30,ts.pY-56,60,16,'rgba(0,200,60,0.95)');
+      T('SPACE!',ts.pX-28,ts.pY-44,'#000',6);
+      ctx.globalAlpha=1;
+    }
+  }
 
-  // Ball
-  if(!ts.serving){
-    // shadow
-    E2(ts.ballX, cy+ch-4, ts.ballSize*0.8, 3, 'rgba(0,0,0,0.3)');
-    // glow
-    ctx.shadowColor='#fde047'; ctx.shadowBlur=10;
-    C2(ts.ballX, ts.ballY, ts.ballSize, '#fde047');
-    C2(ts.ballX-2, ts.ballY-2, ts.ballSize*0.4, '#fffbeb');
-    ctx.shadowBlur=0;
-  } else {
-    // serving indicator
-    C2(ts.paddleY, ts.paddleY, ts.ballSize, '#fde04788');
-    ctx.fillStyle='#fde047'; ctx.globalAlpha=0.5+(ts.serveTimer%20)/20*0.5;
-    ctx.beginPath(); ctx.arc(~~(cx+pw+20),~~ts.paddleY,ts.ballSize,0,Math.PI*2); ctx.fill();
+// ── Player (bottom half) — pixel drawChar facing up toward net ──
+  {
+    const px=~~ts.pX, py=~~ts.pY;
+    // dir=1 = facing up (toward net/AI)
+    drawChar(px, py, 1, '#3b82f6','#1e293b','#f0c27f','#4a2800', ts.pFrame, 1);
+    // Racket — swings to the right side
+    const rSwingOff = ts.pSwing ? ts.pSwingT*2 : 0;
+    R(px+10, py-8+rSwingOff, 5, 12, '#c8902a');
+    R(px+8,  py-18+rSwingOff, 9, 8, '#c8902a');
+    R(px+9,  py-17+rSwingOff, 7, 6, 'rgba(200,240,255,0.5)');
+    R(px-14, py-30, 28, 11, 'rgba(0,0,0,0.8)');
+    T('YOU', px-12, py-22, '#93c5fd', 5);
+    // SPACE prompt when ball close
+    if(ts.phase==='rally'&&ts.ballActive&&ts.lastHitter!=='player'){
+      const dist=Math.hypot(ts.bX-ts.pX, ts.bY-ts.pY);
+      if(dist<55){
+        const pulse=0.6+Math.sin(Date.now()*0.02)*0.4;
+        ctx.globalAlpha=pulse;
+        R(px-30, py-52, 60, 14, 'rgba(0,200,60,0.95)');
+        T('SPACE!', px-28, py-42, '#000', 5);
+        ctx.globalAlpha=1;
+      }
+    }
+  }
+
+  // ── AI (top half) — pixel drawChar facing down toward net ──
+  {
+    const ax=~~ts.aiX, ay=~~ts.aiY;
+    // dir=0 = facing down (toward net/player)
+    drawChar(ax, ay, 0, '#ef4444','#1e3a5f','#f0c27f','#111111', ts.aiFrame, 1);
+    // Racket — swings to the left side
+    const arSwingOff = ts.aiSwing ? ts.aiSwingT*2 : 0;
+    R(ax-15, ay-8-arSwingOff, 5, 12, '#7c3aed');
+    R(ax-17, ay-18-arSwingOff, 9, 8, '#7c3aed');
+    R(ax-16, ay-17-arSwingOff, 7, 6, 'rgba(200,240,255,0.5)');
+    R(ax-14, ay-30, 28, 11, 'rgba(0,0,0,0.8)');
+    T('CPU', ax-12, ay-22, '#fca5a5', 5);
+  }
+
+  // ── Scoreboard ──
+  const sbX=~~(W/2-170), sbY=6, sbW=340, sbH=46;
+  R(sbX,sbY,sbW,sbH,'rgba(3,8,20,0.96)');
+  O(sbX,sbY,sbW,sbH,'#1e3a8a',1.5);
+  ctx.fillStyle='#475569'; ctx.font='4px "Press Start 2P"';
+  ctx.fillText('SET',sbX+92,sbY+10);
+  ctx.fillText('GAME',sbX+144,sbY+10);
+  ctx.fillText('POINT',sbX+210,sbY+10);
+
+  const pRowY=sbY+25;
+  if(ts.server==='player') C2(sbX+10,pRowY-4,3,'#fde047');
+  ctx.fillStyle='#7dd3fc'; ctx.font='6px "Press Start 2P"';
+  ctx.fillText('YOU',sbX+18,pRowY);
+  ctx.fillStyle='#e2e8f0';
+  ctx.fillText(ts.pSets,sbX+100,pRowY);
+  ctx.fillText(ts.pGames,sbX+153,pRowY);
+  const pPt=ts.inTiebreak?ts.tbPPoints+'':ts.deuce?'40':ts.advantage==='player'?'ADV':tennisPointLabel(ts.pPoints);
+  ctx.fillStyle=ts.advantage==='player'?'#4ade80':'#e2e8f0';
+  ctx.fillText(pPt,sbX+218,pRowY);
+
+  const aRowY=sbY+38;
+  if(ts.server==='ai') C2(sbX+10,aRowY-4,3,'#fde047');
+  ctx.fillStyle='#fca5a5'; ctx.font='6px "Press Start 2P"';
+  ctx.fillText('CPU',sbX+18,aRowY);
+  ctx.fillStyle='#e2e8f0';
+  ctx.fillText(ts.aiSets,sbX+100,aRowY);
+  ctx.fillText(ts.aiGames,sbX+153,aRowY);
+  const aPt=ts.inTiebreak?ts.tbAiPoints+'':ts.deuce?'40':ts.advantage==='ai'?'ADV':tennisPointLabel(ts.aiPoints);
+  ctx.fillStyle=ts.advantage==='ai'?'#4ade80':'#e2e8f0';
+  ctx.fillText(aPt,sbX+218,aRowY);
+
+  if(ts.deuce){ R(sbX+260,sbY+28,72,12,'#1e3a8a'); T('DEUCE',sbX+276,sbY+37,'#93c5fd',5); }
+  if(ts.advantage){ R(sbX+260,sbY+28,72,12,'#14532d'); T('ADV '+(ts.advantage==='player'?'YOU':'CPU'),sbX+262,sbY+37,ts.advantage==='player'?'#4ade80':'#fca5a5',4); }
+
+  // Point message
+  if(ts.pointMsgT>0&&ts.pointMsg&&!ts.pointMsg.includes('SERVE')){
+    const fade=Math.min(1,ts.pointMsgT/25);
+    ctx.globalAlpha=fade;
+    ctx.font='7px "Press Start 2P"';
+    const mw=ctx.measureText(ts.pointMsg).width;
+    R(~~(W/2-mw/2-10),~~(H/2-16),~~mw+20,20,'rgba(0,0,0,0.92)');
+    O(~~(W/2-mw/2-10),~~(H/2-16),~~mw+20,20,'#fde047',1.5);
+    ctx.fillStyle='#fde047';
+    ctx.fillText(ts.pointMsg,~~(W/2-mw/2),~~(H/2-1));
     ctx.globalAlpha=1;
   }
 
-  // Score display
-  R(cx, cy-48, cw, 44, 'rgba(0,0,0,0.75)');
-  O(cx, cy-48, cw, 44, '#374151');
-  // Player
-  T('YOU',cx+12,cy-30,'#93c5fd',7); T(ts.playerScore,cx+12,cy-12,'#3b82f6',10);
-  // Rally
-  T('RALLY:'+ts.rally,cx+cw/2-36,cy-30,'#fde047',6);
-  if(ts.highRally>0) T('BEST:'+ts.highRally,cx+cw/2-30,cy-14,'#86efac',5);
-  // AI
-  const aiStr=ts.aiScore+''; T('CPU',cx+cw-60,cy-30,'#fca5a5',7); T(aiStr,cx+cw-40,cy-12,'#ef4444',10);
+  // Controls strip
+  R(0,H-20,W,20,'rgba(0,0,0,0.85)');
+  if(ts.phase==='pre'){
+    const srv=ts.server==='player'?'YOU SERVE':'CPU SERVES';
+    T(srv+' — SPACE to start',~~(W/2-86),H-8,'#6ee7b7',5);
+  } else {
+    T('WASD Move   SPACE Hit   ESC Quit   Best of 3 Sets',~~(W/2-156),H-8,'#475569',5);
+  }
 
-  // Serving text
-  if(ts.serving){ R(cx+cw/2-60,cy+ch/2-12,120,22,'rgba(0,0,0,0.8)'); T('SERVING...',cx+cw/2-56,cy+ch/2+4,'#fde047',7); }
-
-  // Controls
-  R(cx, cy+ch+8, cw, 22, 'rgba(0,0,0,0.7)');
-  T('W/S - Move Paddle  |  ESC - Quit  |  Score 7 to WIN!', cx+8, cy+ch+22, '#9ca3af', 5);
-
-  // Result overlay
-  if(ts.result){
-    R(0,0,W,H,'rgba(0,0,0,0.7)');
-    const msg=ts.result==='won'?'🏆 YOU WIN!':'😔 YOU LOSE!';
-    const col=ts.result==='won'?'#4ade80':'#ef4444';
-    T(msg,W/2-70,H/2-20,col,14);
-    T('+🪙'+(ts.result==='won'?'30':'5'),W/2-30,H/2+8,'#fde047',10);
-    R(W/2-80,H/2+24,160,18,'#000'); O(W/2-80,H/2+24,160,18,col);
-    T('[ESC] Back to Town',W/2-76,H/2+37,col,5);
+  // Match result
+  if(ts.matchResult){
+    ctx.fillStyle='rgba(0,0,0,0.85)'; ctx.fillRect(0,0,W,H);
+    const won=ts.matchResult==='won';
+    const col=won?'#4ade80':'#ef4444';
+    T(won?'MATCH WON!':'MATCH LOST',~~(W/2-72),~~(H/2-22),col,14);
+    T('Sets  '+ts.pSets+' – '+ts.aiSets,~~(W/2-52),~~(H/2+2),'#fde047',9);
+    T('+🪙'+(won?50:10),~~(W/2-20),~~(H/2+20),'#fde047',8);
+    R(~~(W/2-88),~~(H/2+34),176,18,'#000'); O(~~(W/2-88),~~(H/2+34),176,18,col);
+    T('[ESC] Back to Town',~~(W/2-84),~~(H/2+48),col,5);
   }
 
   floats.forEach(f=>{ ctx.globalAlpha=f.life/f.maxLife; T(f.text,f.x,f.y,f.color,8); ctx.globalAlpha=1; });
 }
-
 // ──────────────────────────────────────────────────────────────────────────────
 // ── BASKETBALL MINIGAME ──
 // ──────────────────────────────────────────────────────────────────────────────
 function initBball(){
   SCENE='basketball';
-  const cw=Math.min(W*0.92, 750), ch=Math.min(H*0.68, 420);
-  const cx=(W-cw)/2, cy=(H-ch)/2+30;
+  const cw=Math.min(W*0.72,520), ch=Math.min(H*0.62,380);
+  const cx=(W-cw)/2, cy=(H-ch)/2+20;
   const bs=bballState;
   bs.active=true;
   bs.courtX=cx; bs.courtY=cy; bs.courtW=cw; bs.courtH=ch;
-  bs.hoopLX=cx+36; bs.hoopLY=cy+ch/2;
-  bs.hoopRX=cx+cw-36; bs.hoopRY=cy+ch/2;
+  // Hoops centered on short ends, inset from wall
+  bs.hoopLX=cx+38;       bs.hoopLY=cy+ch/2;
+  bs.hoopRX=cx+cw-38;    bs.hoopRY=cy+ch/2;
   bs.playerScore=0; bs.aiScore=0;
-  bs.gameTime=600; // 600 ticks
-  bs.playerX=cx+cw/2-40; bs.playerY=cy+ch/2;
-  bs.aiPosX=cx+cw/2+80; bs.aiPosY=cy+ch/2;
+  bs.gameTime=99999; // no time limit, play to 21
+  bs.playerX=cx+cw*0.3;  bs.playerY=cy+ch/2;
+  bs.aiPosX=cx+cw*0.7;   bs.aiPosY=cy+ch/2;
   bs.aiVX=0; bs.aiVY=0;
-  bs.ballX=bs.playerX; bs.ballY=bs.playerY-20;
+  bs.ballX=bs.playerX;   bs.ballY=bs.playerY-18;
   bs.ballVX=0; bs.ballVY=0;
   bs.dribbleT=0;
-  bs.shooting=false;
+  bs.shooting=false; bs.shotArcT=0;
+  bs.shotStartX=0; bs.shotStartY=0;
+  bs.shotTargetX=0; bs.shotTargetY=0;
   bs.playerHasBall=true;
   bs.aiHasBall=false;
   bs.flashScore=0; bs.swishFlash=0;
   bs.shotMeterActive=false; bs.shotMeterPower=0; bs.shotMeterDir=1;
-  bs.aiShotTimer=120+Math.floor(Math.random()*180);
+  bs.aiShotTimer=90+Math.floor(Math.random()*120);
+  bs.aiShooting=false; bs.aiShotArcT=0;
+  bs.aiShotStartX=0; bs.aiShotStartY=0;
+  bs.aiShotTargetX=0; bs.aiShotTargetY=0;
+  bs.aiBallX=0; bs.aiBallY=0;
   bs.result=null;
-  addMsg('🏀 BASKETBALL! WASD=move, E=shoot (hold for power). Score before time runs out!');
+  bs.blockCD=0; bs.stealCD=0;
+  bs.blockAnim=0; bs.stealAnim=0;
+  bs.aiBlockAnim=0;
+  bs.aiState='offense'; // 'offense'|'defense'|'shooting'
+  bs.aiMoveT=0;
+  bs.aiDir=2;
+  bs.playerDir=3;
+  bs.playerFrame=0; bs.playerAnimT=0;
+  bs.aiFrame=0; bs.aiAnimT=0;
+  addMsg('🏀 BASKETBALL! WASD=Move  E=Charge Shot+Release  Q=Steal  F=Block');
 }
 
 function updateBball(){
   const bs=bballState;
   if(bs.result) return;
   bs.gameTime--;
-  if(bs.gameTime<=0){
-    if(bs.playerScore>bs.aiScore){ bs.result='won'; coins+=40; addMsg('🏆 Basketball Won! +40🪙'); }
-    else if(bs.playerScore<bs.aiScore){ bs.result='lost'; coins+=5; addMsg('😔 Basketball Lost. +5🪙'); }
-    else { bs.result='draw'; coins+=15; addMsg('🤝 Draw! +15🪙'); }
-    updateHUD(); return;
-  }
+  // Check win at 21
+  if(bs.playerScore>=21){ bs.result='won'; coins+=40; addMsg('🏆 Basketball Won! +40🪙'); updateHUD(); return; }
+  if(bs.aiScore>=21){ bs.result='lost'; coins+=5; addMsg('😔 Basketball Lost. +5🪙'); updateHUD(); return; }
   if(bs.flashScore>0) bs.flashScore--;
   if(bs.swishFlash>0) bs.swishFlash--;
+  if(bs.blockCD>0) bs.blockCD--;
+  if(bs.stealCD>0) bs.stealCD--;
+  if(bs.blockAnim>0) bs.blockAnim--;
+  if(bs.stealAnim>0) bs.stealAnim--;
 
-  // Shot meter
+  // Shot meter oscillation
   if(bs.shotMeterActive){
-    bs.shotMeterPower+=bs.shotMeterDir*2.5;
-    if(bs.shotMeterPower>=100){ bs.shotMeterPower=100; bs.shotMeterDir=-1; }
-    if(bs.shotMeterPower<=0){ bs.shotMeterPower=0; bs.shotMeterDir=1; }
+    bs.shotMeterPower+=bs.shotMeterDir*2.2;
+    if(bs.shotMeterPower>=100){bs.shotMeterPower=100;bs.shotMeterDir=-1;}
+    if(bs.shotMeterPower<=0){bs.shotMeterPower=0;bs.shotMeterDir=1;}
   }
 
-  // Player movement
-  const spd=3.2;
+  // ── Player movement ──
+  const spd=2.6;
   let mx=0,my=0;
-  if((keys['ArrowLeft']||keys['a']||keys['A'])&&!bs.shooting){mx=-spd; player.dir=2;}
-  if((keys['ArrowRight']||keys['d']||keys['D'])&&!bs.shooting){mx=spd; player.dir=3;}
-  if((keys['ArrowUp']||keys['w']||keys['W'])&&!bs.shooting){my=-spd;}
-  if((keys['ArrowDown']||keys['s']||keys['S'])&&!bs.shooting){my=spd;}
-  bs.playerX=Math.max(bs.courtX+16,Math.min(bs.courtX+bs.courtW-16,bs.playerX+mx));
-  bs.playerY=Math.max(bs.courtY+16,Math.min(bs.courtY+bs.courtH-16,bs.playerY+my));
-  if(mx||my){ player.animT++; if(player.animT%7===0) player.frame=(player.frame+1)%4; }
+  if(!bs.shooting){
+    if(keys['ArrowLeft']||keys['a']||keys['A']){mx=-spd;bs.playerDir=2;}
+    if(keys['ArrowRight']||keys['d']||keys['D']){mx=spd;bs.playerDir=3;}
+    if(keys['ArrowUp']||keys['w']||keys['W']){my=-spd;}
+    if(keys['ArrowDown']||keys['s']||keys['S']){my=spd;}
+    if(mx&&my){mx*=0.707;my*=0.707;}
+  }
+  bs.playerX=Math.max(bs.courtX+14,Math.min(bs.courtX+bs.courtW-14,bs.playerX+mx));
+  bs.playerY=Math.max(bs.courtY+14,Math.min(bs.courtY+bs.courtH-14,bs.playerY+my));
+  if(mx||my){bs.playerAnimT++;if(bs.playerAnimT%7===0)bs.playerFrame=(bs.playerFrame+1)%4;}
 
-  // Ball follows player when possessed
+  // ── Ball follows player ──
   if(bs.playerHasBall&&!bs.shooting){
-    bs.dribbleT+=0.22;
-    bs.ballX=bs.playerX+10;
-    bs.ballY=bs.playerY-14+Math.abs(Math.sin(bs.dribbleT))*14;
+    bs.dribbleT+=0.24;
+    bs.ballX=bs.playerX+(bs.playerDir===3?10:-10);
+    bs.ballY=bs.playerY-12+Math.abs(Math.sin(bs.dribbleT))*12;
     if(Math.floor(bs.dribbleT*3)%6===0) sndDribble();
   }
 
-  // AI movement
-  if(!bs.aiHasBall){
-    // AI defends near its hoop / tries to intercept
-    const tX=bs.hoopRX-80, tY=bs.playerY;
-    const dX=tX-bs.aiPosX, dY=tY-bs.aiPosY;
-    const d=Math.hypot(dX,dY);
-    if(d>4){ const s=Math.min(d,2.2); bs.aiPosX+=dX/d*s; bs.aiPosY+=dY/d*s; }
-    // Try to steal
-    if(bs.playerHasBall&&Math.hypot(bs.playerX-bs.aiPosX,bs.playerY-bs.aiPosY)<30&&Math.random()<0.004){
-      bs.playerHasBall=false; bs.aiHasBall=true;
-      addFloat2(bs.aiPosX,bs.aiPosY-20,'STEAL!','#e94560');
-      sndTennisHit();
-    }
-  } else {
-    // AI dribbles toward player hoop
-    const tX=bs.hoopLX+80, tY=bs.courtY+bs.courtH/2;
-    const dX=tX-bs.aiPosX, dY=tY-bs.aiPosY;
-    const d=Math.hypot(dX,dY);
-    if(d>5){ const s=Math.min(d,2.4); bs.aiPosX+=dX/d*s; bs.aiPosY+=dY/d*s; }
-    bs.ballX=bs.aiPosX-10; bs.ballY=bs.aiPosY-14+Math.abs(Math.sin(bs.dribbleT))*14;
-    bs.dribbleT+=0.18;
-    bs.aiShotTimer--;
-    if(bs.aiShotTimer<=0||Math.hypot(bs.aiPosX-bs.hoopLX,bs.aiPosY-bs.hoopLY)<90){
-      // AI shoots
-      bs.aiHasBall=false;
-      const acc=0.72+Math.random()*0.18; // AI hits 70-90%
-      if(Math.random()<acc){
-        bs.aiScore++;
-        bs.flashScore=60;
-        addFloat2(bs.aiPosX,bs.aiPosY-30,'CPU SCORES! 🏀','#ef4444');
-        sndScore();
+  // ── Player STEAL (Q key) ──
+  if((keys['q']||keys['Q'])&&bs.stealCD===0&&bs.aiHasBall&&!bs.shooting){
+    const d=Math.hypot(bs.playerX-bs.aiPosX,bs.playerY-bs.aiPosY);
+    if(d<48){
+      bs.stealCD=90; bs.stealAnim=30;
+      if(Math.random()<0.52){
+        bs.aiHasBall=false; bs.playerHasBall=true;
+        addFloat2(bs.playerX,bs.playerY-28,'STEAL! 💪','#4ade80');
+        sndTennisHit();
       } else {
-        addFloat2(bs.aiPosX,bs.aiPosY-30,'CPU missed','#94a3b8');
-        sndMiss();
-        bs.playerHasBall=true;
-        bs.playerX=bs.playerX;
+        addFloat2(bs.playerX,bs.playerY-28,'STEAL FAILED','#94a3b8');
       }
-      bs.aiShotTimer=120+Math.floor(Math.random()*200);
-    }
-    // Player can steal from AI
-    if(Math.hypot(bs.playerX-bs.aiPosX,bs.playerY-bs.aiPosY)<28&&Math.random()<0.006){
-      bs.aiHasBall=false; bs.playerHasBall=true;
-      addFloat2(bs.playerX,bs.playerY-24,'STEAL! 💪','#4ade80');
-      sndTennisHit();
-    }
-    bs.aiPosX=Math.max(bs.courtX+16,Math.min(bs.courtX+bs.courtW-16,bs.aiPosX));
-    bs.aiPosY=Math.max(bs.courtY+16,Math.min(bs.courtY+bs.courtH-16,bs.aiPosY));
+    } else { addFloat2(bs.playerX,bs.playerY-28,'TOO FAR!','#e94560'); }
   }
 
-  // Shooting arc
+  // ── Player BLOCK (F key) ──
+  if((keys['f']||keys['F'])&&bs.blockCD===0&&!bs.shooting){
+    bs.blockCD=80; bs.blockAnim=25;
+    if(bs.aiShooting){
+      const d=Math.hypot(bs.playerX-bs.aiPosX,bs.playerY-bs.aiPosY);
+      if(d<55){
+        bs.aiShooting=false; bs.aiHasBall=false; bs.playerHasBall=true;
+        bs.aiShotArcT=999;
+        addFloat2(bs.playerX,bs.playerY-30,'BLOCKED! 🙌','#fde047');
+        sndTennisHit();
+      } else { addFloat2(bs.playerX,bs.playerY-28,'OUT OF RANGE','#94a3b8'); }
+    } else { addFloat2(bs.playerX,bs.playerY-28,'BLOCK READY!','#fde047'); }
+  }
+
+  // ── Player shooting arc ──
   if(bs.shooting){
     bs.shotArcT++;
-    const t=bs.shotArcT/40;
+    const dur=44;
+    const t=bs.shotArcT/dur;
     bs.ballX=bs.shotStartX+(bs.shotTargetX-bs.shotStartX)*t;
-    bs.ballY=bs.shotStartY+(bs.shotTargetY-bs.shotStartY)*t - Math.sin(t*Math.PI)*90;
-    if(bs.shotArcT>=40){
+    bs.ballY=bs.shotStartY+(bs.shotTargetY-bs.shotStartY)*t-Math.sin(t*Math.PI)*100;
+    if(bs.shotArcT>=dur){
       bs.shooting=false;
-      // Check if scored (with power-based accuracy)
       const distToHoop=Math.hypot(bs.shotStartX-bs.hoopRX,bs.shotStartY-bs.hoopRY);
-      const shotPower=bs.shotMeterPower;
-      // ideal ~70-75% power
-      const idealPower=72;
-      const diff=Math.abs(shotPower-idealPower);
-      const baseAcc = distToHoop < 150 ? 0.78 : (distToHoop<280 ? 0.62 : 0.45);
-      const powerBonus = diff < 8 ? 0.15 : (diff < 18 ? 0.05 : -0.1);
-      const acc = Math.max(0.1, Math.min(0.96, baseAcc + powerBonus));
+      const diff=Math.abs(bs.shotMeterPower-72);
+      const base=distToHoop<120?0.80:distToHoop<240?0.64:0.46;
+      const bonus=diff<8?0.15:diff<18?0.05:-0.12;
+      const acc=Math.max(0.1,Math.min(0.96,base+bonus));
       if(Math.random()<acc){
         bs.playerScore++;
-        bs.flashScore=60; bs.swishFlash=40;
-        const pts = distToHoop > 280 ? '3 PTR! 🔥' : '2 PTR! 🏀';
-        if(distToHoop>280) coins+=3; else coins+=1;
-        addFloat2(bs.courtX+bs.courtW/2,bs.courtY-10,pts,'#4ade80');
+        bs.flashScore=70; bs.swishFlash=45;
+        const is3=distToHoop>240;
+        if(is3) coins+=3; else coins+=1;
+        addFloat2(bs.courtX+bs.courtW/2,bs.courtY-12,is3?'3 PTR! 🔥':'SCORE! 🏀','#4ade80');
         sndScore(); updateHUD();
+        // Reset both to their end courts
+        bs.aiHasBall=true; bs.playerHasBall=false;
+        bs.playerX=bs.courtX+bs.courtW*0.15; bs.playerY=bs.courtY+bs.courtH/2;
+        bs.aiPosX=bs.courtX+bs.courtW*0.85; bs.aiPosY=bs.courtY+bs.courtH/2;
       } else {
-        addFloat2(bs.ballX,bs.ballY-10,'Miss!','#94a3b8');
+        addFloat2(bs.ballX,bs.ballY-10,'MISS!','#94a3b8');
         sndMiss();
-        bs.aiHasBall=Math.random()<0.5; // 50% AI rebound
-        if(!bs.aiHasBall) bs.playerHasBall=true;
+        // 50/50 rebound
+        if(Math.random()<0.5){ bs.playerHasBall=true; }
+        else { bs.aiHasBall=true; }
       }
       bs.shotMeterActive=false; bs.shotMeterPower=0;
+    }
+  }
+
+  // ── AI logic ──
+  bs.aiAnimT++; if(bs.aiAnimT%7===0) bs.aiFrame=(bs.aiFrame+1)%4;
+  bs.aiMoveT++;
+
+  if(bs.aiShooting){
+    // Animate AI shot arc
+    bs.aiShotArcT++;
+    const dur=44;
+    const t=bs.aiShotArcT/dur;
+    bs.aiBallX=bs.aiShotStartX+(bs.aiShotTargetX-bs.aiShotStartX)*t;
+    bs.aiBallY=bs.aiShotStartY+(bs.aiShotTargetY-bs.aiShotStartY)*t-Math.sin(t*Math.PI)*100;
+    if(bs.aiShotArcT>=dur){
+      bs.aiShooting=false;
+      const acc=0.62+Math.random()*0.22;
+      if(Math.random()<acc){
+        bs.aiScore++;
+        bs.flashScore=70;
+        addFloat2(bs.aiPosX,bs.aiPosY-30,'CPU SCORES! 🏀','#ef4444');
+        sndScore();
+        // Reset both to their end courts
+        bs.playerHasBall=true; bs.aiHasBall=false;
+        bs.playerX=bs.courtX+bs.courtW*0.15; bs.playerY=bs.courtY+bs.courtH/2;
+        bs.aiPosX=bs.courtX+bs.courtW*0.85; bs.aiPosY=bs.courtY+bs.courtH/2;
+      } else {
+        addFloat2(bs.aiPosX,bs.aiPosY-30,'CPU MISSED','#94a3b8');
+        sndMiss();
+        if(Math.random()<0.5){ bs.playerHasBall=true; }
+        else { bs.aiHasBall=true; }
+      }
+    }
+  } else if(bs.aiHasBall){
+    // AI dribbles toward player's hoop (left hoop)
+    const targetX=bs.hoopLX+70;
+    const targetY=bs.courtY+bs.courtH/2+(Math.sin(bs.aiMoveT*0.04)*40);
+    const dx=targetX-bs.aiPosX, dy=targetY-bs.aiPosY;
+    const d=Math.hypot(dx,dy);
+    if(d>4){const s=Math.min(d,1.6);bs.aiPosX+=dx/d*s;bs.aiPosY+=dy/d*s;}
+    bs.aiPosX=Math.max(bs.courtX+14,Math.min(bs.courtX+bs.courtW-14,bs.aiPosX));
+    bs.aiPosY=Math.max(bs.courtY+14,Math.min(bs.courtY+bs.courtH-14,bs.aiPosY));
+    bs.aiDir=bs.aiPosX<bs.playerX?2:3;
+    // AI dribble ball
+    bs.dribbleT+=0.20;
+    bs.aiBallX=bs.aiPosX+(bs.aiDir===3?10:-10);
+    bs.aiBallY=bs.aiPosY-12+Math.abs(Math.sin(bs.dribbleT))*12;
+    if(Math.floor(bs.dribbleT*3)%6===0) sndDribble();
+
+    bs.aiShotTimer--;
+    const distToHoop=Math.hypot(bs.aiPosX-bs.hoopLX,bs.aiPosY-bs.hoopLY);
+    // AI shoots when close enough or timer runs out
+    if(bs.aiShotTimer<=0||(distToHoop<130&&Math.random()<0.025)){
+      bs.aiHasBall=false;
+      bs.aiShooting=true; bs.aiShotArcT=0;
+      bs.aiShotStartX=bs.aiPosX; bs.aiShotStartY=bs.aiPosY;
+      // Aim at left hoop with slight spread
+      bs.aiShotTargetX=bs.hoopLX+(Math.random()-0.5)*14;
+      bs.aiShotTargetY=bs.hoopLY+(Math.random()-0.5)*14;
+      bs.aiShotTimer=180+Math.floor(Math.random()*180);
+      sndTennisHit();
+    }
+
+    // AI steal attempt on player
+    if(bs.playerHasBall){
+      const pd=Math.hypot(bs.playerX-bs.aiPosX,bs.playerY-bs.aiPosY);
+      if(pd<36&&Math.random()<0.006){
+        bs.playerHasBall=false; bs.aiHasBall=true;
+        addFloat2(bs.aiPosX,bs.aiPosY-22,'CPU STEAL!','#e94560');
+        sndTennisHit();
+      }
+    }
+  } else {
+    // AI defends — positions between player and its own hoop
+    const defX=bs.playerX*0.4+bs.hoopLX*0.6;
+    const defY=bs.playerY*0.4+(bs.courtY+bs.courtH/2)*0.6;
+    const dx=defX-bs.aiPosX, dy=defY-bs.aiPosY;
+    const d=Math.hypot(dx,dy);
+    if(d>5){const s=Math.min(d,2.0);bs.aiPosX+=dx/d*s;bs.aiPosY+=dy/d*s;}
+    bs.aiPosX=Math.max(bs.courtX+14,Math.min(bs.courtX+bs.courtW-14,bs.aiPosX));
+    bs.aiPosY=Math.max(bs.courtY+14,Math.min(bs.courtY+bs.courtH-14,bs.aiPosY));
+    bs.aiDir=bs.aiPosX<bs.playerX?3:2;
+
+    // AI steal from player dribbling
+    if(bs.playerHasBall&&!bs.shooting){
+      const pd=Math.hypot(bs.playerX-bs.aiPosX,bs.playerY-bs.aiPosY);
+      if(pd<38&&Math.random()<0.006){
+        bs.playerHasBall=false; bs.aiHasBall=true;
+        addFloat2(bs.aiPosX,bs.aiPosY-22,'CPU STEAL! 🤚','#e94560');
+        sndTennisHit();
+        bs.aiBlockAnim=30;
+      }
+    }
+
+    // AI block — triggers when player is charging shot meter near hoop
+    if(bs.shotMeterActive&&!bs.shooting){
+      const pd=Math.hypot(bs.playerX-bs.aiPosX,bs.playerY-bs.aiPosY);
+      const playerNearHoop=Math.hypot(bs.playerX-bs.hoopRX,bs.playerY-bs.hoopRY)<160;
+      if(pd<52&&playerNearHoop&&Math.random()<0.018){
+        // CPU jumps to block — cancel the shot
+        bs.shotMeterActive=false; bs.shotMeterPower=0;
+        bs.playerHasBall=false;
+        // 50/50 who gets the rebound after block
+        if(Math.random()<0.5){ bs.aiHasBall=true; }
+        else { bs.playerHasBall=true; }
+        addFloat2(bs.aiPosX,bs.aiPosY-30,'CPU BLOCK! 🙌','#fde047');
+        sndTennisHit();
+        bs.aiBlockAnim=35;
+      }
     }
   }
 }
@@ -823,135 +1258,249 @@ function drawBballGame(){
   const bs=bballState;
   const {courtX:cx,courtY:cy,courtW:cw,courtH:ch}=bs;
 
-  // Background
+  // ── Background stadium ──
   R(0,0,W,H,'#1c0a00');
-  // Crowd dots (decorative)
-  for(let i=0;i<120;i++){
-    const rx=(i*137)%W, ry=((i*91)%(cy-10));
-    ctx.fillStyle=NPC_COLS[i%NPC_COLS.length]+'66';
-    ctx.fillRect(~~rx,~~ry,4,5);
+  // Crowd
+  for(let i=0;i<160;i++){
+    const rx=(i*137)%W, ry=((i*91+20)%(cy-8));
+    ctx.fillStyle=NPC_COLS[i%NPC_COLS.length]+'77';
+    ctx.fillRect(~~rx,~~ry,5,6);
+  }
+  // Crowd below court
+  for(let i=0;i<160;i++){
+    const rx=(i*113)%W, ry=cy+ch+4+((i*79)%30);
+    ctx.fillStyle=NPC_COLS[(i+5)%NPC_COLS.length]+'55';
+    ctx.fillRect(~~rx,~~ry,5,6);
   }
 
-  // Floor
-  R(cx, cy, cw, ch, '#c2410c');
-  ctx.strokeStyle='rgba(180,60,0,0.35)'; ctx.lineWidth=1;
-  for(let gl=0;gl<cw;gl+=8){ ctx.beginPath(); ctx.moveTo(~~(cx+gl),~~cy); ctx.lineTo(~~(cx+gl),~~(cy+ch)); ctx.stroke(); }
-  O(cx, cy, cw, ch, '#7c2d12', 3);
+  // ── Court floor ──
+  R(cx+5,cy+5,cw,ch,'rgba(0,0,0,0.4)');
+  R(cx,cy,cw,ch,'#b45309');
+  // Wood grain
+  ctx.strokeStyle='rgba(140,60,0,0.3)'; ctx.lineWidth=1;
+  for(let gl=0;gl<cw;gl+=7){
+    ctx.beginPath();ctx.moveTo(~~(cx+gl),~~cy);ctx.lineTo(~~(cx+gl),~~(cy+ch));ctx.stroke();
+  }
+  O(cx,cy,cw,ch,'#78350f',3);
 
-  // Court lines
-  ctx.strokeStyle='rgba(255,255,255,0.85)'; ctx.lineWidth=2;
+  // ── Court lines ──
+  ctx.strokeStyle='rgba(255,255,255,0.88)'; ctx.lineWidth=2;
+  // Boundary
   O(cx+8,cy+8,cw-16,ch-16,'rgba(255,255,255,0.7)',1.5);
-  ctx.beginPath(); ctx.moveTo(~~(cx+cw/2),~~(cy+8)); ctx.lineTo(~~(cx+cw/2),~~(cy+ch-8)); ctx.stroke();
-  ctx.beginPath(); ctx.arc(~~(cx+cw/2),~~(cy+ch/2),32,0,Math.PI*2); ctx.stroke();
-
-  // Paint
-  const pW=70, pHh=55;
-  ctx.fillStyle='rgba(255,165,0,0.2)';
-  ctx.fillRect(~~(cx+8),~~(cy+ch/2-pHh),~~pW,~~(pHh*2));
-  ctx.fillRect(~~(cx+cw-8-pW),~~(cy+ch/2-pHh),~~pW,~~(pHh*2));
+  // Half-court line
+  ctx.beginPath();ctx.moveTo(~~(cx+cw/2),~~(cy+8));ctx.lineTo(~~(cx+cw/2),~~(cy+ch-8));ctx.stroke();
+  // Center circle
+  ctx.beginPath();ctx.arc(~~(cx+cw/2),~~(cy+ch/2),32,0,Math.PI*2);ctx.stroke();
+  // Paint (key) boxes
+  ctx.fillStyle='rgba(255,140,0,0.18)';
+  ctx.fillRect(~~(cx+8),~~(cy+ch/2-40),68,80);
+  ctx.fillRect(~~(cx+cw-76),~~(cy+ch/2-40),68,80);
   ctx.strokeStyle='rgba(255,255,255,0.75)'; ctx.lineWidth=1.5;
-  ctx.strokeRect(~~(cx+8),~~(cy+ch/2-pHh),~~pW,~~(pHh*2));
-  ctx.strokeRect(~~(cx+cw-8-pW),~~(cy+ch/2-pHh),~~pW,~~(pHh*2));
-
-  // 3-pt arcs
+  ctx.strokeRect(~~(cx+8),~~(cy+ch/2-40),68,80);
+  ctx.strokeRect(~~(cx+cw-76),~~(cy+ch/2-40),68,80);
+  // Free throw circles
+  ctx.strokeStyle='rgba(255,255,255,0.6)'; ctx.lineWidth=1.5;
+  ctx.beginPath();ctx.arc(~~(cx+76),~~(cy+ch/2),28,0,Math.PI*2);ctx.stroke();
+  ctx.beginPath();ctx.arc(~~(cx+cw-76),~~(cy+ch/2),28,0,Math.PI*2);ctx.stroke();
+  // 3-point arcs
   ctx.strokeStyle='rgba(255,255,255,0.65)'; ctx.lineWidth=1.5;
-  ctx.beginPath(); ctx.arc(~~(cx+60),~~(cy+ch/2),60,-Math.PI/2,Math.PI/2); ctx.stroke();
-  ctx.beginPath(); ctx.arc(~~(cx+cw-60),~~(cy+ch/2),60,Math.PI/2,Math.PI*1.5); ctx.stroke();
+  ctx.beginPath();ctx.arc(~~(cx+62),~~(cy+ch/2),68,-Math.PI/2,Math.PI/2);ctx.stroke();
+  ctx.beginPath();ctx.arc(~~(cx+cw-62),~~(cy+ch/2),68,Math.PI/2,Math.PI*1.5);ctx.stroke();
 
-  // Hoops
-  // Left
-  R(cx-2, cy+ch/2-20, 5, 40, '#64748b');
-  R(cx+4, cy+ch/2-4, 32, 4, '#ef4444');
-  ctx.strokeStyle='#fca5a5'; ctx.lineWidth=2;
+  // ── Backboards + Hoops ──
+  // Left hoop
+  R(cx-4,cy+ch/2-22,5,44,'#94a3b8');           // backboard
+  R(cx+4,cy+ch/2-4,30,4,'#ef4444');             // rim
+  // Net lines left
+  ctx.strokeStyle='rgba(255,220,180,0.7)'; ctx.lineWidth=1;
   for(let ni=0;ni<5;ni++){
     ctx.beginPath();
-    ctx.moveTo(~~(cx+8+ni*5),~~(cy+ch/2));
-    ctx.lineTo(~~(cx+10+ni*5),~~(cy+ch/2+10+ni*2));
+    ctx.moveTo(~~(cx+5+ni*5),~~(cy+ch/2));
+    ctx.lineTo(~~(cx+8+ni*4),~~(cy+ch/2+14));
     ctx.stroke();
   }
-  // Right
-  R(cx+cw-3, cy+ch/2-20, 5, 40, '#64748b');
-  R(cx+cw-36, cy+ch/2-4, 32, 4, '#ef4444');
-  ctx.strokeStyle='#fca5a5'; ctx.lineWidth=2;
+  ctx.beginPath();ctx.moveTo(~~(cx+5),~~(cy+ch/2+14));ctx.lineTo(~~(cx+25),~~(cy+ch/2+14));ctx.stroke();
+
+  // Right hoop
+  R(cx+cw-1,cy+ch/2-22,5,44,'#94a3b8');
+  R(cx+cw-34,cy+ch/2-4,30,4,'#ef4444');
+  // Net lines right
+  ctx.strokeStyle='rgba(255,220,180,0.7)'; ctx.lineWidth=1;
   for(let ni=0;ni<5;ni++){
     ctx.beginPath();
-    ctx.moveTo(~~(cx+cw-8-ni*5),~~(cy+ch/2));
-    ctx.lineTo(~~(cx+cw-10-ni*5),~~(cy+ch/2+10+ni*2));
+    ctx.moveTo(~~(cx+cw-5-ni*5),~~(cy+ch/2));
+    ctx.lineTo(~~(cx+cw-8-ni*4),~~(cy+ch/2+14));
     ctx.stroke();
   }
+  ctx.beginPath();ctx.moveTo(~~(cx+cw-5),~~(cy+ch/2+14));ctx.lineTo(~~(cx+cw-25),~~(cy+ch/2+14));ctx.stroke();
 
-  // Score flash
+  // ── Score flash overlay ──
   if(bs.flashScore>0){
-    ctx.fillStyle=`rgba(255,215,0,${bs.flashScore/60*0.12})`;
+    ctx.fillStyle=`rgba(255,200,0,${bs.flashScore/70*0.13})`;
     ctx.fillRect(~~cx,~~cy,~~cw,~~ch);
   }
-  // Swish flash
   if(bs.swishFlash>0){
-    ctx.fillStyle=`rgba(74,222,128,${bs.swishFlash/40*0.18})`;
+    ctx.fillStyle=`rgba(74,222,128,${bs.swishFlash/45*0.18})`;
     ctx.fillRect(~~cx,~~cy,~~cw,~~ch);
   }
 
-  // AI player
-  drawChar(bs.aiPosX,bs.aiPosY,bs.aiPosX<W/2?3:2,'#ef4444','#1e3a5f','#f0c27f','#1a1a1a',Math.floor(bs.dribbleT*3)%4,0.9);
-
-  // Player
-  drawChar(bs.playerX,bs.playerY,player.dir,'#3b82f6','#1e293b','#f0c27f','#4a2800',player.frame,1);
-
-  // Ball
-  if(!bs.shooting){
-    E2(bs.ballX, cy+ch-6, 8, 3, 'rgba(0,0,0,0.3)');
-    ctx.shadowColor='#f97316'; ctx.shadowBlur=6;
-    C2(bs.ballX, bs.ballY, 9, '#f97316');
-    C2(bs.ballX, bs.ballY, 9, 'rgba(0,0,0,0)');
-    ctx.strokeStyle='#7c2d12'; ctx.lineWidth=1;
-    ctx.beginPath(); ctx.moveTo(~~(bs.ballX-9),~~bs.ballY); ctx.lineTo(~~(bs.ballX+9),~~bs.ballY); ctx.stroke();
-    ctx.beginPath(); ctx.arc(~~bs.ballX,~~bs.ballY,9,0,Math.PI*2); ctx.stroke();
-    ctx.shadowBlur=0;
-  } else {
-    E2(bs.ballX, cy+ch-6, 8, 3, 'rgba(0,0,0,0.2)');
-    ctx.shadowColor='#f97316'; ctx.shadowBlur=8;
-    C2(bs.ballX, bs.ballY, 9, '#f97316');
-    ctx.shadowBlur=0;
+  // ── Block anim ring ──
+  // ── AI block anim ring ──
+  if(bs.aiBlockAnim>0){
+    bs.aiBlockAnim--;
+    const ba=bs.aiBlockAnim/35;
+    ctx.strokeStyle=`rgba(253,224,71,${ba})`; ctx.lineWidth=3;
+    ctx.beginPath();ctx.arc(~~bs.aiPosX,~~bs.aiPosY,30+((1-ba)*18),0,Math.PI*2);ctx.stroke();
+    T('BLOCK!',bs.aiPosX-20,bs.aiPosY-36,'#fde047',6);
   }
 
-  // Shot meter
+  // ── Player Block anim ring ──
+  if(bs.blockAnim>0){
+    const ba=bs.blockAnim/25;
+    ctx.strokeStyle=`rgba(253,224,71,${ba})`; ctx.lineWidth=3;
+    ctx.beginPath();ctx.arc(~~bs.playerX,~~bs.playerY,30+((1-ba)*16),0,Math.PI*2);ctx.stroke();
+    T('BLOCK!',bs.playerX-20,bs.playerY-36,'#fde047',6);
+  }
+  // ── Steal anim ring ──
+  if(bs.stealAnim>0){
+    const sa=bs.stealAnim/30;
+    ctx.strokeStyle=`rgba(74,222,128,${sa})`; ctx.lineWidth=3;
+    ctx.beginPath();ctx.arc(~~bs.playerX,~~bs.playerY,28+((1-sa)*12),0,Math.PI*2);ctx.stroke();
+  }
+
+  // ── AI character ──
+  drawChar(~~bs.aiPosX,~~bs.aiPosY,bs.aiDir,'#ef4444','#1e3a5f','#f0c27f','#1a1a1a',bs.aiFrame,0.95);
+  // AI ball (when dribbling)
+  if(bs.aiHasBall&&!bs.aiShooting){
+    E2(bs.aiBallX,cy+ch-8,7,3,'rgba(0,0,0,0.28)');
+    ctx.shadowColor='#f97316'; ctx.shadowBlur=5;
+    C2(bs.aiBallX,bs.aiBallY,8,'#f97316');
+    ctx.shadowBlur=0;
+    ctx.strokeStyle='#7c2d12'; ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(~~(bs.aiBallX-8),~~bs.aiBallY);ctx.lineTo(~~(bs.aiBallX+8),~~bs.aiBallY);ctx.stroke();
+    ctx.beginPath();ctx.arc(~~bs.aiBallX,~~bs.aiBallY,8,0,Math.PI*2);ctx.stroke();
+  }
+  // AI shot arc ball
+  if(bs.aiShooting){
+    E2(bs.aiBallX,cy+ch-8,7,3,'rgba(0,0,0,0.2)');
+    ctx.shadowColor='#f97316'; ctx.shadowBlur=10;
+    C2(bs.aiBallX,bs.aiBallY,8,'#f97316');
+    ctx.shadowBlur=0;
+    // Arc trail
+    ctx.strokeStyle='rgba(249,115,22,0.3)'; ctx.lineWidth=2; ctx.setLineDash([3,5]);
+    ctx.beginPath();
+    const dur=44;
+    for(let ti=0;ti<=10;ti++){
+      const tt=(bs.aiShotArcT+ti*2)/dur;
+      if(tt>1) break;
+      const bx2=bs.aiShotStartX+(bs.aiShotTargetX-bs.aiShotStartX)*tt;
+      const by2=bs.aiShotStartY+(bs.aiShotTargetY-bs.aiShotStartY)*tt-Math.sin(tt*Math.PI)*100;
+      ti===0?ctx.moveTo(~~bx2,~~by2):ctx.lineTo(~~bx2,~~by2);
+    }
+    ctx.stroke(); ctx.setLineDash([]);
+  }
+
+  // ── Player character ──
+  drawChar(~~bs.playerX,~~bs.playerY,bs.playerDir,'#3b82f6','#1e293b','#f0c27f','#4a2800',bs.playerFrame,1);
+  // Player ball
+  if(bs.playerHasBall&&!bs.shooting){
+    E2(bs.ballX,cy+ch-8,7,3,'rgba(0,0,0,0.28)');
+    ctx.shadowColor='#f97316'; ctx.shadowBlur=5;
+    C2(bs.ballX,bs.ballY,8,'#f97316');
+    ctx.shadowBlur=0;
+    ctx.strokeStyle='#7c2d12'; ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(~~(bs.ballX-8),~~bs.ballY);ctx.lineTo(~~(bs.ballX+8),~~bs.ballY);ctx.stroke();
+    ctx.beginPath();ctx.arc(~~bs.ballX,~~bs.ballY,8,0,Math.PI*2);ctx.stroke();
+  }
+  // Player shot arc
+  if(bs.shooting){
+    E2(bs.ballX,cy+ch-8,7,3,'rgba(0,0,0,0.2)');
+    ctx.shadowColor='#f97316'; ctx.shadowBlur=10;
+    C2(bs.ballX,bs.ballY,8,'#f97316');
+    ctx.shadowBlur=0;
+    ctx.strokeStyle='rgba(249,115,22,0.25)'; ctx.lineWidth=2; ctx.setLineDash([3,5]);
+    ctx.beginPath();
+    const dur=44;
+    for(let ti=0;ti<=10;ti++){
+      const tt=(bs.shotArcT+ti*2)/dur;
+      if(tt>1) break;
+      const bx2=bs.shotStartX+(bs.shotTargetX-bs.shotStartX)*tt;
+      const by2=bs.shotStartY+(bs.shotTargetY-bs.shotStartY)*tt-Math.sin(tt*Math.PI)*100;
+      ti===0?ctx.moveTo(~~bx2,~~by2):ctx.lineTo(~~bx2,~~by2);
+    }
+    ctx.stroke(); ctx.setLineDash([]);
+  }
+
+  // ── Shot meter ──
   if(bs.shotMeterActive){
-    const mX=bs.playerX-16, mY=bs.playerY-70, mW=32, mH=10;
-    R(mX, mY, mW, mH, '#1f2937'); O(mX,mY,mW,mH,'#4b5563');
+    const mX=bs.playerX-18, mY=bs.playerY-80, mW=36, mH=12;
+    R(mX,mY,mW,mH,'#1f2937'); O(mX,mY,mW,mH,'#4b5563');
     const pct=bs.shotMeterPower/100;
     const mc=pct>0.85||pct<0.55?'#ef4444':pct>0.65&&pct<0.82?'#4ade80':'#fde047';
-    R(mX, mY, mW*pct, mH, mc);
-    T('SHOOT',mX-2,mY-4,'#e2e8f0',4);
+    R(mX,mY,mW*pct,mH,mc);
+    // Ideal zone marker
+    R(mX+mW*0.65,mY,2,mH,'rgba(255,255,255,0.8)');
+    R(mX+mW*0.82,mY,2,mH,'rgba(255,255,255,0.8)');
+    T('SHOOT',mX,mY-8,'#e2e8f0',4);
   }
 
-  // HUD scoreboard
-  R(cx,cy-52,cw,48,'rgba(0,0,0,0.82)');
-  O(cx,cy-52,cw,48,'#374151');
-  T('YOU',cx+14,cy-32,'#93c5fd',7); T(bs.playerScore,cx+14,cy-14,'#3b82f6',12);
-  const timeS=Math.ceil(bs.gameTime/60); const timeStr=timeS+'s';
-  T('⏱'+timeStr,cx+cw/2-28,cy-28,'#fde047',7);
-  T('CPU',cx+cw-60,cy-32,'#fca5a5',7); T(bs.aiScore,cx+cw-50,cy-14,'#ef4444',12);
+  // ── Steal/Block range indicator ──
+  if(bs.aiHasBall||bs.aiShooting){
+    const d=Math.hypot(bs.playerX-bs.aiPosX,bs.playerY-bs.aiPosY);
+    if(d<80){
+      const alpha=Math.max(0,(80-d)/80*0.5);
+      ctx.strokeStyle=`rgba(74,222,128,${alpha})`; ctx.lineWidth=1.5;
+      ctx.setLineDash([4,4]);
+      ctx.beginPath();ctx.arc(~~bs.playerX,~~bs.playerY,48,0,Math.PI*2);ctx.stroke();
+      ctx.setLineDash([]);
+      if(bs.stealCD===0&&bs.aiHasBall) T('[Q]STEAL',bs.playerX-24,bs.playerY+32,'#4ade80',4);
+      if(bs.blockCD===0&&bs.aiShooting) T('[F]BLOCK',bs.playerX-22,bs.playerY+32,'#fde047',4);
+    }
+  }
 
-  // Controls strip
-  R(cx,cy+ch+8,cw,26,'rgba(0,0,0,0.8)');
-  T('WASD=Move  E=Charge Shot  Release E=Shoot  Score more in time!',cx+6,cy+ch+22,'#9ca3af',4);
+  // ── HUD scoreboard ──
+  R(0,0,W,52,'rgba(0,0,0,0.88)');
+  O(0,0,W,52,'#374151');
+  // Player side
+  R(8,4,120,44,'#1e3a5f'); O(8,4,120,44,'#3b82f6');
+  T('YOU',16,18,'#93c5fd',6);
+  T(''+bs.playerScore,16,40,'#3b82f6',14);
+  // Timer center
+  T('FIRST TO 21',W/2-44,14,'#9ca3af',5);
+  T('🏀',W/2-8,35,'#f97316',10);
+  // CPU side
+  R(W-128,4,120,44,'#450a0a'); O(W-128,4,120,44,'#ef4444');
+  T('CPU',W-120,18,'#fca5a5',6);
+  T(''+bs.aiScore,W-120,40,'#ef4444',14);
 
-  // Result
+  // ── Controls bar ──
+  R(0,H-22,W,22,'rgba(0,0,0,0.85)');
+  T('WASD Move   E=Charge/Release Shot   Q=Steal   F=Block',W/2-140,H-8,'#6b7280',4);
+
+  // ── Possession indicator ──
+  if(bs.playerHasBall){
+    R(W/2-36,56,72,12,'#1e3a5f'); O(W/2-36,56,72,12,'#3b82f6');
+    T('YOUR BALL',W/2-34,65,'#93c5fd',4);
+  } else if(bs.aiHasBall||bs.aiShooting){
+    R(W/2-36,56,72,12,'#450a0a'); O(W/2-36,56,72,12,'#ef4444');
+    T('CPU BALL',W/2-30,65,'#fca5a5',4);
+  }
+
+  // ── Result overlay ──
   if(bs.result){
-    R(0,0,W,H,'rgba(0,0,0,0.72)');
+    R(0,0,W,H,'rgba(0,0,0,0.75)');
     const msg=bs.result==='won'?'🏆 YOU WIN!':bs.result==='draw'?'🤝 DRAW!':'😔 YOU LOSE!';
     const col=bs.result==='won'?'#4ade80':bs.result==='draw'?'#fde047':'#ef4444';
     const earn=bs.result==='won'?40:bs.result==='draw'?15:5;
     T(msg,W/2-75,H/2-24,col,16);
     T('+🪙'+earn,W/2-28,H/2+6,'#fde047',11);
-    T('Final: '+bs.playerScore+' - '+bs.aiScore,W/2-60,H/2+28,'#e2e8f0',7);
+    T('Score: '+bs.playerScore+' - '+bs.aiScore,W/2-60,H/2+28,'#e2e8f0',7);
     R(W/2-84,H/2+44,168,18,'#000'); O(W/2-84,H/2+44,168,18,col);
     T('[ESC] Back to Town',W/2-80,H/2+58,col,5);
   }
 
   floats.forEach(f=>{ ctx.globalAlpha=f.life/f.maxLife; T(f.text,f.x,f.y,f.color,8); ctx.globalAlpha=1; });
 }
-
 // ── BUILDING DRAW ──
 function drawBuilding(b){
   const {x,y,w,h,color,roof,label,sign,type}=b;
@@ -1515,7 +2064,8 @@ function sndBathe(){ for(let i=0;i<6;i++) setTimeout(()=>playTone(600+Math.rando
 function sndPC(){ [262,330,392,523].forEach((f,i)=>setTimeout(()=>playTone(f,0.08,'square',0.1),i*50)); }
 function sndStep(){ playTone(80+Math.random()*20,0.03,'square',0.04); }
 function sndEnter(){ [330,440,550,660].forEach((f,i)=>setTimeout(()=>playTone(f,0.09,'triangle',0.12),i*45)); }
-function sndTennisHit(){ playTone(440+Math.random()*160,0.06,'sine',0.14); }
+function sndTennisHit(){ playTone(520+Math.random()*180,0.07,'sine',0.16); setTimeout(()=>playTone(340,0.04,'sine',0.08),60); }
+function sndTennisBounce(){ playTone(280+Math.random()*60,0.05,'square',0.08); }
 function sndTennisScore(win){ if(win){[523,659,784,1047].forEach((f,i)=>setTimeout(()=>playTone(f,0.08,'square',0.12),i*50));}else{[330,262,220].forEach((f,i)=>setTimeout(()=>playTone(f,0.1,'square',0.1),i*60));} }
 function sndScore(){ [523,659,784,1047,1319].forEach((f,i)=>setTimeout(()=>playTone(f,0.08,'square',0.14),i*45)); }
 function sndMiss(){ [330,280,220].forEach((f,i)=>setTimeout(()=>playTone(f,0.09,'sawtooth',0.1),i*55)); }
@@ -1645,7 +2195,7 @@ function interact(){
   if(SCENE==='town') iTown();
   else if(SCENE==='interior') iInterior();
   else if(SCENE==='shop') iShop();
-  else if(SCENE==='tennis'&&tennisState.result) exitTennis();
+  else if(SCENE==='tennis'&&tennisState.matchResult) exitTennis();
   else if(SCENE==='basketball'&&bballState.result) exitBball();
 }
 
@@ -1726,11 +2276,20 @@ function finishAct(id){
 }
 function addFloat2(x,y,text,color){ floats.push({x,y,text,color,life:80,maxLife:80}); }
 
-// ── BASKETBALL E key (hold=charge, release=shoot) ──
+// ── Input handlers ──
 document.addEventListener('keydown',e=>{
   keys[e.key]=true;
   if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key)) e.preventDefault();
+
+  // SPACE for tennis serve/hit
+  if(e.key===' '){
+    if(SCENE==='tennis'&&!tennisState.matchResult){
+      tennisState.swingQueued=true;
+    }
+  }
+
   if(e.key==='e'||e.key==='E'){
+    if(SCENE==='tennis'&&tennisState.matchResult){ exitTennis(); return; }
     if(SCENE==='basketball'&&!bballState.shooting&&bballState.playerHasBall&&!bballState.result){
       bballState.shotMeterActive=true; bballState.shotMeterPower=0; bballState.shotMeterDir=1;
     } else { interact(); }
@@ -1751,7 +2310,13 @@ document.addEventListener('keydown',e=>{
 });
 document.addEventListener('keyup',e=>{
   const wasE=e.key==='e'||e.key==='E';
+  const wasSpace=e.key===' ';
   keys[e.key]=false;
+  // Release SPACE in tennis: if swing wasn't consumed this frame, clear it
+  if(wasSpace&&SCENE==='tennis'){
+    // swingQueued is consumed in updateTennis; clear here if somehow not consumed
+    // (it stays set until update loop processes it - ok)
+  }
   // Release E to shoot in basketball
   if(wasE&&SCENE==='basketball'&&bballState.shotMeterActive&&!bballState.shooting&&bballState.playerHasBall&&!bballState.result){
     const bs=bballState;
@@ -1759,7 +2324,6 @@ document.addEventListener('keyup',e=>{
     bs.shooting=true;
     bs.shotArcT=0;
     bs.shotStartX=bs.playerX; bs.shotStartY=bs.playerY;
-    // Shoot toward right hoop (player attacks right side)
     bs.shotTargetX=bs.hoopRX; bs.shotTargetY=bs.hoopRY;
     bs.playerHasBall=false;
     sndTennisHit();
