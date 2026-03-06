@@ -920,9 +920,12 @@ function update(){
     } else if(lavaSound)lavaSound.gain.gain.setTargetAtTime(0,audioCtx.currentTime,0.5);
   }
 
-  // Lava damage
+// Lava damage
   if(lava.active&&!lavaShieldActive&&!godMode){
-    if(col(player,lava))triggerGameOver();
+    const lavaCheck=riding
+      ?{x:horse.x,y:horse.y,w:horse.w,h:horse.h}
+      :player;
+    if(col(lavaCheck,lava))triggerGameOver();
   }
 
   // Fire patches
