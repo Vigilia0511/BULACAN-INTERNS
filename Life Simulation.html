@@ -1,0 +1,1528 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Pixel Life — Town Builder</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+*{margin:0;padding:0;box-sizing:border-box;image-rendering:pixelated;}
+html,body{width:100%;height:100%;background:#0a0a12;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;font-family:'Press Start 2P',monospace;}
+#wrap{display:flex;flex-direction:column;width:100vw;height:100vh;}
+#hud{display:flex;align-items:center;gap:6px;background:#0d1117;border-bottom:2px solid #ffd700;padding:4px 10px;flex-shrink:0;height:32px;}
+.hp{background:#1f2937;border:1px solid #374151;padding:2px 6px;font-size:7px;color:#d1d5db;display:flex;align-items:center;gap:4px;white-space:nowrap;}
+.hp b{color:#ffd700;}
+#scene-lbl{margin-left:auto;font-size:6px;color:#6ee7b7;border:1px solid #6ee7b7;padding:2px 6px;}
+#time-bar-wrap{flex:1;max-width:200px;height:8px;background:#111;border:1px solid #374151;position:relative;}
+#time-bar{height:100%;width:0%;background:#ffd700;transition:none;}
+#canvas-wrap{flex:1;position:relative;overflow:hidden;}
+#canvas{display:block;cursor:none;}
+#inv-bar{display:flex;align-items:center;gap:3px;padding:3px 8px;background:#0d1117;border-top:2px solid #ffd700;flex-shrink:0;height:58px;}
+.inv-lbl{font-size:5px;color:#6b7280;writing-mode:vertical-rl;transform:rotate(180deg);height:48px;display:flex;align-items:center;margin-right:2px;}
+.inv-slot{width:46px;height:48px;background:#1a2030;border:1px solid #2d3a4a;position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;cursor:pointer;}
+.inv-slot:hover,.inv-slot.hot{border-color:#ffd700;box-shadow:inset 0 0 4px #ffd70033;}
+.inv-slot .sico{font-size:19px;line-height:1;}
+.inv-slot .snm{font-size:4px;color:#9ca3af;}
+.inv-slot .sqt{position:absolute;bottom:2px;right:3px;font-size:6px;color:#ffd700;}
+.inv-div{width:1px;height:48px;background:#374151;margin:0 2px;flex-shrink:0;}
+#msg-bar{margin-left:6px;flex:1;font-size:6px;color:#6ee7b7;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.panel{position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(8,10,18,0.97);z-index:20;display:none;flex-direction:column;align-items:center;justify-content:center;gap:10px;}
+.panel h2{font-size:12px;color:#ffd700;text-shadow:2px 2px #e94560;}
+.panel-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:7px;width:90%;max-width:720px;}
+.bp-card{background:#161e2e;border:1px solid #2d3a4a;padding:8px 5px;display:flex;flex-direction:column;align-items:center;gap:3px;}
+.bp-card .big{font-size:20px;}
+.bp-card .ttl{color:#e5e7eb;font-size:5px;text-align:center;}
+.bp-card .cst{color:#6b7280;font-size:4px;text-align:center;line-height:1.8;}
+.bp-card.done{border-color:#22c55e;background:#071a10;}
+.bp-card.done .ttl{color:#4ade80;}
+.bp-card button{font-family:'Press Start 2P';font-size:5px;background:#ffd700;color:#000;border:none;padding:4px 8px;cursor:pointer;margin-top:2px;}
+.bp-card button:disabled{background:#2d3a4a;color:#6b7280;cursor:not-allowed;}
+.pcl{font-family:'Press Start 2P';font-size:7px;background:#e94560;color:#fff;border:none;padding:8px 20px;cursor:pointer;}
+.shop-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:7px;width:90%;max-width:720px;}
+.sc{background:#161e2e;border:1px solid #2d3a4a;padding:8px 5px;display:flex;flex-direction:column;align-items:center;gap:3px;}
+.sc .big{font-size:20px;}
+.sc .pr{color:#ffd700;font-size:6px;}
+.sc .hv{color:#6b7280;font-size:5px;}
+.sc button{font-family:'Press Start 2P';font-size:5px;background:#22c55e;color:#000;border:none;padding:4px 8px;cursor:pointer;}
+.sc button:disabled{background:#2d3a4a;color:#555;cursor:not-allowed;}
+#menu{position:absolute;top:0;left:0;width:100%;height:100%;background:#0a0a12;z-index:30;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;}
+#menu h1{font-size:20px;color:#ffd700;text-shadow:3px 3px #e94560;}
+#menu p{font-size:7px;color:#6ee7b7;text-align:center;line-height:2.2;}
+#menu .ctrl{font-size:5px;color:#6b7280;text-align:center;line-height:2.4;border:1px solid #1f2937;padding:8px 20px;}
+#sbtn{font-family:'Press Start 2P';font-size:10px;background:#ffd700;color:#0a0a12;border:none;padding:12px 28px;cursor:pointer;animation:pulse 1.4s ease-in-out infinite;}
+@keyframes pulse{0%,100%{transform:scale(1);}50%{transform:scale(1.06);}}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="hud">
+    <div class="hp">❤️<b id="hh">100</b></div>
+    <div class="hp">⚡<b id="he">100</b></div>
+    <div class="hp">🪙<b id="hc">0</b></div>
+    <div class="hp">🍔<b id="hf">100</b></div>
+    <div class="hp">📅Day<b id="hd">1</b></div>
+    <div class="hp">🏠<b id="hpp">0%</b></div>
+    <div class="hp" style="gap:6px;">🕐<div id="time-bar-wrap"><div id="time-bar"></div></div></div>
+    <div id="scene-lbl">TOWN</div>
+  </div>
+  <div id="canvas-wrap">
+    <canvas id="canvas"></canvas>
+    <div class="panel" id="hpanel">
+      <h2>🏠 BUILD YOUR HOUSE</h2>
+      <div id="hprog" style="font-size:6px;color:#6ee7b7;"></div>
+      <div class="panel-grid" id="bpgrid"></div>
+      <button class="pcl" onclick="closePanel('hpanel')">CLOSE [H]</button>
+    </div>
+    <div id="menu">
+      <h1>PIXEL LIFE</h1>
+      <p>Work jobs · Collect resources · Run your shop<br>Build your house · Live your life!</p>
+      <div class="ctrl">
+        WASD / Arrows — Move &nbsp;|&nbsp; E — Interact<br>
+        H — Build House &nbsp;|&nbsp; B — My Shop<br>
+        ESC — Exit building
+      </div>
+      <button id="sbtn" onclick="startGame()">▶ START</button>
+    </div>
+  </div>
+  <div id="inv-bar">
+    <div class="inv-lbl">BAG</div>
+    <div class="inv-slot hot"><div class="sico">🍞</div><div class="snm">Bread</div><div class="sqt" id="q-bread">0</div></div>
+    <div class="inv-slot"><div class="sico">🥕</div><div class="snm">Veggie</div><div class="sqt" id="q-veggie">0</div></div>
+    <div class="inv-slot"><div class="sico">🎂</div><div class="snm">Cake</div><div class="sqt" id="q-cake">0</div></div>
+    <div class="inv-div"></div>
+    <div class="inv-slot"><div class="sico">🪵</div><div class="snm">Lumber</div><div class="sqt" id="q-lumber">0</div></div>
+    <div class="inv-slot"><div class="sico">🔧</div><div class="snm">Tools</div><div class="sqt" id="q-tool">0</div></div>
+    <div class="inv-slot"><div class="sico">🔩</div><div class="snm">Nails</div><div class="sqt" id="q-nail">0</div></div>
+    <div class="inv-slot"><div class="sico">🧱</div><div class="snm">Bricks</div><div class="sqt" id="q-brick">0</div></div>
+    <div class="inv-slot"><div class="sico">🪟</div><div class="snm">Glass</div><div class="sqt" id="q-glass">0</div></div>
+    <div class="inv-slot"><div class="sico">🔌</div><div class="snm">Wiring</div><div class="sqt" id="q-wire">0</div></div>
+    <div class="inv-slot"><div class="sico">🚿</div><div class="snm">Pipes</div><div class="sqt" id="q-pipe">0</div></div>
+    <div class="inv-div"></div>
+    <div id="msg-bar">Walk around · [E] Interact · [H] Build · [B] Shop</div>
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+let W, H;
+function resizeCanvas(){
+  const wrap = document.getElementById('canvas-wrap');
+  W = wrap.clientWidth; H = wrap.clientHeight;
+  canvas.width = W; canvas.height = H;
+}
+resizeCanvas();
+window.addEventListener('resize', ()=>{ resizeCanvas(); cam.x=Math.max(0,Math.min(MAP_W-W,player.x-W/2)); cam.y=Math.max(0,Math.min(MAP_H-H,player.y-H/2)); });
+
+// ── STATE ──
+let SCENE = 'menu';
+let coins=0, hp=100, energy=100, hunger=100, day=1;
+let gameTime=0;
+const DAY_LEN = 14400;
+let floats=[], particles=[], groundCoins=[], townGroundItems=[], buildingCustomers=[];
+let interactCD=0;
+const keys={};
+let cam={x:0,y:0};
+const MAP_W=1800, MAP_H=1100;
+const inv={bread:0,veggie:0,cake:0,lumber:0,tool:0,nail:0,brick:0,glass:0,wire:0,pipe:0};
+
+// ── PLAYER ──
+const player={x:500,y:750,vx:0,vy:0,dir:2,frame:0,animT:0,speed:2.6};
+
+// ── BUILDINGS ──
+const BUILDINGS=[
+  {id:'bakery',   x:60,  y:60,  w:170,h:130,color:'#92400e',roof:'#b91c1c',label:'BAKERY',   sign:'🍞',type:'job',item:'bread', iname:'Bread', cv:8},
+  {id:'grocery',  x:280, y:60,  w:170,h:130,color:'#14532d',roof:'#15803d',label:'GROCERY',  sign:'🥕',type:'job',item:'veggie',iname:'Veggie',cv:6},
+  {id:'hardware', x:500, y:60,  w:170,h:130,color:'#374151',roof:'#4b5563',label:'HARDWARE', sign:'🔧',type:'job',item:'tool',  iname:'Tools', cv:10},
+  {id:'woodshop', x:720, y:60,  w:170,h:130,color:'#78350f',roof:'#b45309',label:'WOODSHOP', sign:'🪵',type:'job',item:'lumber',iname:'Lumber',cv:7},
+  {id:'nailshop', x:60,  y:280, w:155,h:120,color:'#1e3a5f',roof:'#1d4ed8',label:'NAIL SHOP',sign:'🔩',type:'job',item:'nail', iname:'Nails', cv:5},
+  {id:'glassshp', x:265, y:280, w:155,h:120,color:'#134e4a',roof:'#0891b2',label:'GLASS',    sign:'🪟',type:'job',item:'glass',iname:'Glass', cv:9},
+  {id:'electric', x:470, y:280, w:155,h:120,color:'#3b0764',roof:'#7e22ce',label:'ELECTRIC', sign:'🔌',type:'job',item:'wire', iname:'Wiring',cv:11},
+  {id:'plumbing', x:675, y:280, w:155,h:120,color:'#0c4a6e',roof:'#0369a1',label:'PLUMBING', sign:'🚿',type:'job',item:'pipe', iname:'Pipes', cv:8},
+  {id:'brickshp', x:60,  y:490, w:155,h:120,color:'#422006',roof:'#7c2d12',label:'BRICKYARD',sign:'🧱',type:'job',item:'brick',iname:'Bricks',cv:7},
+  {id:'myshop',   x:320, y:490, w:200,h:140,color:'#3b0764',roof:'#86198f',label:'MY SHOP',  sign:'🏪',type:'myshop'},
+  {id:'houseplot',x:600, y:490, w:260,h:200,color:'#111827',roof:'#111827',label:'MY HOUSE', sign:'🏠',type:'houseplot'},
+];
+
+// ── TREES (static decorations scattered around map) ──
+const TREES=[
+  {x:50,y:740},{x:200,y:750},{x:380,y:740},{x:550,y:740},{x:710,y:740},{x:850,y:745},
+  {x:980,y:730},{x:1100,y:750},{x:1220,y:740},{x:1350,y:745},{x:1480,y:730},{x:1600,y:750},
+  {x:1700,y:740},{x:1750,y:600},{x:1750,y:450},{x:1750,y:300},{x:1750,y:150},
+  {x:900,y:60},{x:1050,y:80},{x:1200,y:60},{x:1350,y:80},{x:1500,y:60},
+  {x:900,y:280},{x:1050,y:290},{x:1200,y:280},{x:1350,y:290},{x:1500,y:280},
+  {x:900,y:490},{x:1050,y:500},{x:1200,y:490},{x:1350,y:500},{x:1500,y:490},
+  {x:50,y:900},{x:200,y:910},{x:400,y:900},{x:620,y:910},{x:820,y:900},
+  {x:1000,y:900},{x:1200,y:910},{x:1400,y:900},{x:1600,y:910},{x:1750,y:900},
+  {x:50,y:500},{x:50,y:640},{x:230,y:500},{x:230,y:630},
+  // grass clusters
+  {x:1000,y:150},{x:1100,y:130},{x:1300,y:160},{x:1450,y:140},{x:1550,y:150},
+  {x:1050,y:380},{x:1250,y:400},{x:1400,y:370},{x:1550,y:390},
+];
+
+// ── HOUSE ITEMS ──
+const HOUSE_ITEMS=[
+  {id:'foundation',name:'Foundation',ico:'🧱',cost:{brick:6,nail:4},   done:false},
+  {id:'walls',     name:'Walls',     ico:'🏗️',cost:{brick:8,lumber:4,nail:6},done:false},
+  {id:'roof',      name:'Roof',      ico:'🏠',cost:{lumber:6,nail:4},  done:false},
+  {id:'door',      name:'Door',      ico:'🚪',cost:{lumber:3,tool:1},  done:false},
+  {id:'windows',   name:'Windows',   ico:'🪟',cost:{glass:4,lumber:2,nail:2},done:false},
+  {id:'kitchen',   name:'Kitchen',   ico:'🍳',cost:{brick:4,pipe:2},   done:false},
+  {id:'bedroom',   name:'Bedroom',   ico:'🛏️',cost:{lumber:5,tool:2},  done:false},
+  {id:'bathroom',  name:'Bathroom',  ico:'🚿',cost:{pipe:4,brick:3},   done:false},
+  {id:'pcroom',    name:'PC Room',   ico:'💻',cost:{wire:4,glass:2},   done:false},
+  {id:'garden',    name:'Garden',    ico:'🌿',cost:{lumber:3,brick:2}, done:false},
+];
+
+const SELL_ITEMS=[
+  {key:'bread', name:'Bread', ico:'🍞',price:12},
+  {key:'veggie',name:'Veggie',ico:'🥕',price:9},
+  {key:'cake',  name:'Cake',  ico:'🎂',price:30},
+  {key:'lumber',name:'Lumber',ico:'🪵',price:14},
+  {key:'tool',  name:'Tools', ico:'🔧',price:18},
+  {key:'nail',  name:'Nails', ico:'🔩',price:8},
+  {key:'brick', name:'Bricks',ico:'🧱',price:11},
+  {key:'glass', name:'Glass', ico:'🪟',price:16},
+  {key:'wire',  name:'Wiring',ico:'🔌',price:20},
+  {key:'pipe',  name:'Pipes', ico:'🚿',price:15},
+];
+
+// ── SHOP INTERIOR ──
+let shopCustomers = [];
+let shopSellPrompt = null; // {custId, item, price}
+let shopEarnings = 0;
+
+function makeShopCust(id){
+  const items = SELL_ITEMS.filter(si=>(inv[si.key]||0)>0);
+  const want = items.length>0 ? items[Math.floor(Math.random()*items.length)] : null;
+  return {
+    id, x: 100+Math.random()*(W-200), y: 80+Math.random()*(H-200),
+    targetX: 0, targetY: 0,
+    color: NPC_COLS[Math.floor(Math.random()*NPC_COLS.length)],
+    hairC: ['#4a2800','#ffd700','#1a1a1a','#a0522d'][Math.floor(Math.random()*4)],
+    state: 'browsing', // browsing, waiting, buying, leaving
+    want, waitT: 0, maxWait: 280+Math.random()*140,
+    animT: 0, leaveT: 0, dir: 0,
+    vx: (Math.random()-.5)*1.2, vy: (Math.random()-.5)*1.2,
+    bobT: Math.random()*Math.PI*2,
+    coinVal: want ? want.price + Math.floor(Math.random()*5) : 0,
+    thinkT: 60+Math.floor(Math.random()*90),
+  };
+}
+
+// ── HOUSE INTERIOR ──
+const HACT=[
+  {id:'bed',  x:0.10,y:0.18,w:0.14,h:0.22,ico:'🛏️',lbl:'Sleep',  key:'bedroom', act:'sleep'},
+  {id:'stove',x:0.38,y:0.12,w:0.12,h:0.18,ico:'🍳',lbl:'Cook',   key:'kitchen', act:'cook'},
+  {id:'pc',   x:0.62,y:0.12,w:0.14,h:0.18,ico:'💻',lbl:'PC',     key:'pcroom',  act:'pc'},
+  {id:'table',x:0.38,y:0.48,w:0.14,h:0.18,ico:'🍽️',lbl:'Eat',    key:'kitchen', act:'eat'},
+  {id:'bath', x:0.74,y:0.48,w:0.14,h:0.22,ico:'🛁',lbl:'Bathe',  key:'bathroom',act:'bathe'},
+  {id:'exit', x:0.43,y:0.78,w:0.14,h:0.12,ico:'🚪',lbl:'Exit',   key:null,      act:'exit'},
+];
+let hAct=null, hTimer=0, hProg=0;
+
+const NPC_COLS=['#e74c3c','#3498db','#2ecc71','#9b59b6','#f39c12','#1abc9c','#e91e63','#ff5722'];
+
+// ── DRAW HELPERS ──
+function R(x,y,w,h,c){ctx.fillStyle=c;ctx.fillRect(~~x,~~y,~~w,~~h);}
+function O(x,y,w,h,c,lw=1){ctx.strokeStyle=c;ctx.lineWidth=lw;ctx.strokeRect(~~x+.5,~~y+.5,~~w,~~h);}
+function T(txt,x,y,col,sz=7){ctx.font=`${sz}px "Press Start 2P"`;ctx.fillStyle=col;ctx.fillText(txt,~~x,~~y);}
+function C2(x,y,rad,c){ctx.fillStyle=c;ctx.beginPath();ctx.arc(~~x,~~y,rad,0,Math.PI*2);ctx.fill();}
+function E2(x,y,rx,ry,c){ctx.fillStyle=c;ctx.beginPath();ctx.ellipse(~~x,~~y,rx,ry,0,0,Math.PI*2);ctx.fill();}
+
+function drawChar(x,y,dir,shirtC,pantsC,skinC,hairC,frame,scale=1){
+  const s=scale, f=frame%4;
+  const legL=(f===1||f===3)?-2*s:0, legR=(f===1||f===3)?2*s:0;
+  const armL=(f===0||f===2)?-2*s:1*s, armR=(f===0||f===2)?2*s:-1*s;
+  E2(x,y+12*s,9*s,4*s,'rgba(0,0,0,0.25)');
+  if(dir!==1){
+    R(x-5*s+legL,y+8*s,5*s,3*s,'#222'); R(x+1*s+legR,y+8*s,5*s,3*s,'#222');
+    R(x-5*s+legL,y+2*s,5*s,7*s,pantsC); R(x+1*s+legR,y+2*s,5*s,7*s,pantsC);
+    R(x-6*s,y-8*s,12*s,11*s,shirtC);
+    R(x-11*s+armL,y-2*s,4*s,4*s,skinC); R(x+7*s+armR,y-2*s,4*s,4*s,skinC);
+    R(x-10*s+armL,y-7*s,4*s,8*s,shirtC); R(x+6*s+armR,y-7*s,4*s,8*s,shirtC);
+    R(x-6*s,y-20*s,12*s,13*s,skinC); R(x-6*s,y-20*s,12*s,4*s,hairC);
+    if(dir===0){R(x-4*s,y-14*s,2*s,2*s,'#000');R(x+2*s,y-14*s,2*s,2*s,'#000');R(x-2*s,y-10*s,4*s,1*s,'#c0392b');}
+    if(dir===2){R(x-5*s,y-14*s,2*s,2*s,'#000');}
+    if(dir===3){R(x+3*s,y-14*s,2*s,2*s,'#000');}
+  } else {
+    R(x-5*s+legL,y+8*s,5*s,3*s,'#222'); R(x+1*s+legR,y+8*s,5*s,3*s,'#222');
+    R(x-5*s+legL,y+2*s,5*s,7*s,pantsC); R(x+1*s+legR,y+2*s,5*s,7*s,pantsC);
+    R(x-6*s,y-8*s,12*s,11*s,shirtC);
+    R(x-10*s+armL,y-7*s,4*s,8*s,shirtC); R(x+6*s+armR,y-7*s,4*s,8*s,shirtC);
+    R(x-11*s+armL,y-2*s,4*s,4*s,skinC); R(x+7*s+armR,y-2*s,4*s,4*s,skinC);
+    R(x-6*s,y-20*s,12*s,13*s,skinC); R(x-6*s,y-20*s,12*s,5*s,hairC);
+  }
+}
+
+function drawTree(sx,sy,sz=1){
+  // trunk
+  R(sx-4*sz,sy-2*sz,8*sz,14*sz,'#6b4226');
+  R(sx-3*sz,sy-1*sz,3*sz,12*sz,'#8B5A2B');
+  // roots
+  R(sx-7*sz,sy+10*sz,5*sz,4*sz,'#5a3820');
+  R(sx+2*sz,sy+10*sz,5*sz,4*sz,'#5a3820');
+  // shadow
+  E2(sx,sy+14*sz,14*sz,5*sz,'rgba(0,0,0,0.2)');
+  // canopy layers
+  C2(sx,sy-8*sz,18*sz,'#1a5c0a');
+  C2(sx-6*sz,sy-4*sz,14*sz,'#1e6e0e');
+  C2(sx+6*sz,sy-4*sz,14*sz,'#185a09');
+  C2(sx,sy-16*sz,15*sz,'#236b12');
+  C2(sx,sy-22*sz,10*sz,'#2a7d15');
+  // highlight
+  C2(sx-4*sz,sy-14*sz,5*sz,'rgba(60,180,30,0.4)');
+}
+
+function hDone(id){ return HOUSE_ITEMS.find(h=>h.id===id)?.done; }
+function builtCount(){ return HOUSE_ITEMS.filter(h=>h.done).length; }
+
+// ── BUILDING COLLISION BOX (slightly inset) ──
+function buildingCollides(bx,by,bw,bh,nx,ny){
+  return nx>bx+4&&nx<bx+bw-4&&ny>by+10&&ny<by+bh-4;
+}
+
+function drawBuilding(b){
+  const {x,y,w,h,color,roof,label,sign,type}=b;
+  const sx=x-cam.x, sy=y-cam.y;
+  if(sx+w<0||sy+h<0||sx>W||sy>H) return;
+  ctx.fillStyle='rgba(0,0,0,0.3)';ctx.fillRect(~~sx+5,~~sy+5,~~w,~~h);
+  if(type==='houseplot'){ drawHousePlot(b,sx,sy); return; }
+
+  R(sx,sy,w,h,roof);
+  R(sx+5,sy+5,w-10,h-10,color);
+  R(sx+8,sy+8,w-16,h-16,color+'88');
+
+  // walls detail
+  for(let bx=sx+10;bx<sx+w-10;bx+=12){
+    R(bx,sy+10,10,6,color+'55');
+  }
+
+  const dX=sx+w/2-7, dY=sy+h-8;
+  R(dX,dY,14,8,'#4a2800'); O(dX,dY,14,8,'#000');
+  R(dX+5,dY+3,3,3,'#ffd700');
+
+  [[sx+7,sy+7],[sx+w-17,sy+7],[sx+7,sy+h-21],[sx+w-17,sy+h-21]].forEach(([wx,wy])=>{
+    R(wx,wy,10,10,'#7dd3fc'); O(wx,wy,10,10,'#0ea5e9');
+    R(wx+1,wy+1,4,4,'rgba(255,255,255,0.5)');
+  });
+
+  ctx.font='18px serif'; ctx.fillText(sign,~~(sx+w/2-9),~~(sy+h/2+7));
+  O(sx,sy,w,h,type==='myshop'?'#c026d3':'#374151',2);
+
+  ctx.font='6px "Press Start 2P"';
+  const lw=ctx.measureText(label).width;
+  R(sx+w/2-lw/2-5,sy-16,lw+10,13,'#000');
+  O(sx+w/2-lw/2-5,sy-16,lw+10,13,type==='myshop'?'#c026d3':'#4b5563');
+  T(label,sx+w/2-lw/2,sy-6,type==='myshop'?'#e879f9':'#d1d5db',6);
+
+  // Sidewalk
+  R(sx-3,sy+h,w+6,18,'#7c6f4a');
+
+  const px2=player.x-cam.x, py2=player.y-cam.y;
+  const dist=Math.hypot(px2-(sx+w/2), py2-(sy+h+9));
+  if(dist<60&&type==='myshop'){
+    R(sx+w/2-30,sy+h+20,60,13,'#000');O(sx+w/2-30,sy+h+20,60,13,'#ffd700');
+    T('[E] ENTER',sx+w/2-28,sy+h+30,'#ffd700',5);
+  }
+}
+
+function drawHousePlot(b,sx,sy){
+  const {w,h}=b;
+  const done=builtCount();
+  const hasFnd=hDone('foundation'), hasWalls=hDone('walls'), hasRoof=hDone('roof');
+  const hasDoor=hDone('door'), hasWin=hDone('windows'), hasGarden=hDone('garden');
+
+  R(sx,sy,w,h,'#1a1a0e');
+  if(!hasFnd){
+    ctx.strokeStyle='#2a2a1a';ctx.lineWidth=1;ctx.setLineDash([5,5]);
+    for(let gx=sx+15;gx<sx+w-5;gx+=18){ctx.beginPath();ctx.moveTo(~~gx,~~sy+3);ctx.lineTo(~~gx,~~sy+h-3);ctx.stroke();}
+    for(let gy=sy+15;gy<sy+h-5;gy+=18){ctx.beginPath();ctx.moveTo(~~sx+3,~~gy);ctx.lineTo(~~sx+w-3,~~gy);ctx.stroke();}
+    ctx.setLineDash([]);
+    ctx.font='22px serif';ctx.fillText('🏗️',~~(sx+w/2-11),~~(sy+h/2+8));
+    T('BUILD HERE',sx+w/2-38,sy+h/2+24,'#444',6);
+  } else {
+    R(sx+4,sy+4,w-8,h-8,'#5a4a3a');R(sx+8,sy+8,w-16,h-16,'#6b5a45');
+  }
+  if(hasWalls){
+    R(sx+4,sy+4,w-8,12,'#9b8060');R(sx+4,sy+h-16,w-8,12,'#9b8060');
+    R(sx+4,sy+4,12,h-8,'#9b8060');R(sx+w-16,sy+4,12,h-8,'#9b8060');
+    R(sx+16,sy+16,w-32,h-32,'#c4a882');
+    for(let tx=sx+18;tx<sx+w-18;tx+=14) for(let ty=sy+18;ty<sy+h-18;ty+=14)
+      if(((tx-sx+ty-sy)/14)%2===0) R(tx,ty,13,13,'#b89870');
+  }
+  if(hasRoof){
+    ctx.fillStyle='rgba(100,40,20,0.35)';ctx.fillRect(~~(sx+4),~~(sy+4),~~(w-8),~~(h-8));
+    ctx.strokeStyle='#8B3A20';ctx.lineWidth=3;ctx.setLineDash([]);
+    ctx.beginPath();ctx.moveTo(~~(sx+w/2),~~(sy+8));ctx.lineTo(~~(sx+w/2),~~(sy+h-8));ctx.stroke();
+    ctx.beginPath();ctx.moveTo(~~(sx+8),~~(sy+h/2));ctx.lineTo(~~(sx+w-8),~~(sy+h/2));ctx.stroke();
+  }
+  if(hasWin){
+    [[sx+18,sy+8],[sx+w-32,sy+8],[sx+8,sy+18],[sx+w-20,sy+18]].forEach(([wx,wy])=>{
+      R(wx,wy,14,8,'#7dd3fc');O(wx,wy,14,8,'#38bdf8');
+    });
+  }
+  if(hasDoor){
+    const dx=sx+w/2-8;
+    R(dx,sy+h-16,16,12,'#8B6914');O(dx,sy+h-16,16,12,'#000',1);
+    R(dx+5,sy+h-9,4,4,'#ffd700');
+  }
+  if(hasGarden){
+    R(sx+w-28,sy+h-28,24,24,'#2d5a1e');
+    ctx.font='12px serif';ctx.fillText('🌿',~~(sx+w-26),~~(sy+h-10));
+  }
+  const builtIds=HOUSE_ITEMS.filter(h=>h.done).map(h=>h.ico);
+  builtIds.slice(0,6).forEach((ico,i)=>{
+    ctx.font='10px serif';ctx.fillText(ico,~~(sx+5+i%3*14),~~(sy+h+12+Math.floor(i/3)*13));
+  });
+  O(sx,sy,w,h,done>=3?'#ffd700':'#444',done>=3?2:1);
+  const pct=done/HOUSE_ITEMS.length;
+  R(sx,sy+h+2,w,6,'#111');R(sx,sy+h+2,w*pct,6,'#22c55e');O(sx,sy+h+2,w,6,'#374151');
+  ctx.font='6px "Press Start 2P"';
+  const lw=ctx.measureText('MY HOUSE').width;
+  R(sx+w/2-lw/2-5,sy-16,lw+10,13,'#000');O(sx+w/2-lw/2-5,sy-16,lw+10,13,'#ffd700');
+  T('MY HOUSE',sx+w/2-lw/2,sy-6,'#ffd700',6);
+  R(sx-3,sy+h+8,w+6,16,'#7c6f4a');
+  const pd=Math.hypot(player.x-cam.x-(sx+w/2),player.y-cam.y-(sy+h+16));
+  if(pd<60){
+    if(done>=3){
+      R(sx+w/2-28,sy+h+26,56,13,'#000');O(sx+w/2-28,sy+h+26,56,13,'#ffd700');
+      T('[E] ENTER',sx+w/2-27,sy+h+36,'#ffd700',5);
+    } else {
+      R(sx+w/2-54,sy+h+26,108,13,'#000');O(sx+w/2-54,sy+h+26,108,13,'#e94560');
+      T('NEED FOUNDATION+WALLS+ROOF',sx+w/2-74,sy+h+36,'#e94560',4);
+    }
+  }
+}
+
+// ── DRAW TOWN ──
+function drawTown(){
+  const cx=cam.x, cy=cam.y;
+  const tod=gameTime/DAY_LEN;
+  let groundC='#2d5a27';
+  if(tod<0.15||tod>0.85) groundC='#1a2e18';
+  else if(tod>0.45&&tod<0.55) groundC='#3a6e30';
+  R(0,0,W,H,groundC);
+
+  // Grass texture dots
+  ctx.fillStyle='#255220';
+  for(let gx=0;gx<MAP_W;gx+=22) for(let gy=0;gy<MAP_H;gy+=18){
+    if((gx+gy)%44===0) ctx.fillRect(~~(gx-cx),~~(gy-cy),3,2);
+  }
+
+  // Cobblestone path network (NOT blinding yellow lines, just subtle stone)
+  // Horizontal paths
+  const pathsH=[250,460,680,870];
+  const pathsV=[230,450,680,900];
+
+  pathsH.forEach(ry=>{
+    R(0,ry-cy,W,38,'#5a5550');
+    // stone tiles
+    for(let px=0;px<MAP_W;px+=20){
+      const shade=(Math.floor(px/20)+Math.floor(ry/38))%2===0?'#635d58':'#524d49';
+      R(px-cx,ry-cy+1,18,36,shade);
+    }
+    // subtle edge lines
+    ctx.fillStyle='rgba(0,0,0,0.3)';ctx.fillRect(0,~~(ry-cy),W,2);
+    ctx.fillStyle='rgba(0,0,0,0.3)';ctx.fillRect(0,~~(ry+36-cy),W,2);
+  });
+  pathsV.forEach(rx=>{
+    R(rx-cx,0,38,H,'#5a5550');
+    for(let py=0;py<MAP_H;py+=20){
+      const shade=(Math.floor(rx/38)+Math.floor(py/20))%2===0?'#635d58':'#524d49';
+      R(rx-cx+1,py-cy,36,18,shade);
+    }
+    ctx.fillStyle='rgba(0,0,0,0.3)';ctx.fillRect(~~(rx-cx),0,2,H);
+    ctx.fillStyle='rgba(0,0,0,0.3)';ctx.fillRect(~~(rx+36-cx),0,2,H);
+  });
+
+  // Grass patches
+  [[40,730,160,80],[500,730,120,80],[750,730,100,80],[40,460+80,100,60],
+   [900,100,200,120],[900,300,300,140],[900,500,260,160],[1100,150,180,100]].forEach(([gx,gy,gw,gh])=>{
+    R(gx-cx,gy-cy,gw,gh,'#3a6e1e');
+  });
+
+  // Buildings
+  BUILDINGS.forEach(b=>drawBuilding(b));
+
+  // Trees (drawn after buildings so they appear in front)
+  TREES.forEach(t=>{
+    const tx=t.x-cx, ty=t.y-cy;
+    if(tx>-40&&tx<W+40&&ty>-50&&ty<H+30) drawTree(tx,ty);
+  });
+
+  // Ground items
+  townGroundItems.filter(i=>!i.collected).forEach(i=>{
+    const bob=Math.sin(i.bobT)*3;
+    const sx=i.x-cx, sy=i.y-cy+bob;
+    R(sx-14,sy-14,28,28,'rgba(255,255,80,0.1)');
+    ctx.font='16px serif';ctx.fillText(i.ico,~~sx-8,~~sy+5);
+    T('[E]',sx-8,sy+16,'#ffd700',4);
+  });
+
+  // Coins
+  groundCoins.filter(c=>!c.collected).forEach(c=>{
+    const bob=Math.sin(c.bobT)*3;
+    const sx=c.x-cx, sy=c.y-cy+bob;
+    R(sx-5,sy-5,10,10,'#ffd700');O(sx-5,sy-5,10,10,'#b8860b');
+    R(sx-2,sy-2,4,4,'#fffde0');
+  });
+
+  // NPCs
+  buildingCustomers.forEach(c=>{
+    const sx=c.x-cx, sy=c.y-cy;
+    if(sx<-30||sx>W+30||sy<-40||sy>H+20) return;
+    const f=Math.floor(c.animT/10)%4;
+    drawChar(sx,sy,0,c.color,'#2c3e50','#f0c27f','#4a2800',f,0.85);
+    if(c.state==='waiting'){ ctx.font='12px serif';ctx.fillText('❓',~~sx-6,~~sy-24); }
+    if(c.state==='happy'){   ctx.font='12px serif';ctx.fillText('😊',~~sx-6,~~sy-24); }
+    if(c.state==='waiting'){
+      const dist=Math.hypot(player.x-c.x,player.y-c.y);
+      if(dist<55){ R(sx-30,sy-38,60,14,'#000');O(sx-30,sy-38,60,14,'#ffd700');T('[E]SERVE',sx-27,sy-27,'#ffd700',5); }
+    }
+  });
+
+  const px=player.x-cx, py=player.y-cy;
+  drawChar(px,py,player.dir,'#3498db','#2c3e50','#f0c27f','#4a2800',player.frame,1);
+  R(px-16,py-28,32,10,'rgba(0,0,0,0.6)');T('YOU',px-13,py-21,'#ffd700',5);
+
+  floats.forEach(f=>{ ctx.globalAlpha=f.life/f.maxLife; T(f.text,f.x-cam.x,f.y-cam.y,f.color,8); ctx.globalAlpha=1; });
+  particles.forEach(p=>{ ctx.globalAlpha=p.life/p.maxLife; R(p.x-cam.x,p.y-cam.y,p.s,p.s,p.color); ctx.globalAlpha=1; });
+
+  if(tod<0.2||tod>0.8){
+    const a=tod<0.2?(0.2-tod)/0.2*0.6:(tod-0.8)/0.2*0.6;
+    ctx.fillStyle=`rgba(0,0,20,${Math.min(0.65,a)})`;ctx.fillRect(0,0,W,H);
+    if(a>0.3){
+      ctx.fillStyle=`rgba(255,255,200,${(a-0.3)*1.5})`;
+      [[120,40],[300,20],[500,50],[650,30],[750,15],[200,60],[420,25]].forEach(([sx,sy])=>ctx.fillRect(~~sx,~~sy,2,2));
+    }
+  }
+  drawMinimap();
+}
+
+function drawMinimap(){
+  const mw=130,mh=90,mx=W-mw-8,my=8;
+  R(mx,my,mw,mh,'rgba(0,0,0,0.75)');O(mx,my,mw,mh,'#374151');
+  const scx=mw/MAP_W, scy=mh/MAP_H;
+  BUILDINGS.forEach(b=>{ const c=b.type==='myshop'?'#a21caf':b.type==='houseplot'?'#ffd700':'#4b5563'; R(mx+b.x*scx,my+b.y*scy,b.w*scx,b.h*scy,c); });
+  TREES.forEach(t=>{ ctx.fillStyle='#1a5c0a'; ctx.fillRect(~~(mx+t.x*scx-1),~~(my+t.y*scy-1),3,3); });
+  R(mx+player.x*scx-2,my+player.y*scy-2,5,5,'#e74c3c');
+  O(mx+cam.x*scx,my+cam.y*scy,W*scx,H*scy,'#ffffff88');
+}
+
+// ── SHOP INTERIOR DRAW ──
+function drawShopInterior(){
+  // Background
+  R(0,0,W,H,'#1a0a2e');
+
+  // Floor tiles
+  for(let tx=0;tx<W;tx+=40) for(let ty=50;ty<H-50;ty+=40){
+    const shade=((tx/40+ty/40)%2===0)?'#221535':'#1c1030';
+    R(tx,ty,39,39,shade);
+  }
+  // Grout lines
+  ctx.strokeStyle='#0f0820';ctx.lineWidth=1;
+  for(let tx=0;tx<=W;tx+=40){ctx.beginPath();ctx.moveTo(tx,50);ctx.lineTo(tx,H-50);ctx.stroke();}
+  for(let ty=50;ty<=H-50;ty+=40){ctx.beginPath();ctx.moveTo(0,ty);ctx.lineTo(W,ty);ctx.stroke();}
+
+  // Walls
+  R(0,0,W,55,'#2a1050');
+  R(0,0,8,H,'#2a1050');R(W-8,0,8,H,'#2a1050');
+  R(0,H-55,W,55,'#200c3e');
+
+  // Wall decorations - shelves with items
+  const shelfY=18;
+  SELL_ITEMS.slice(0,5).forEach((si,i)=>{
+    const shx=W*0.08+i*(W*0.16), shy=shelfY;
+    R(shx,shy,W*0.13,8,'#5a3a10');
+    ctx.font='14px serif';ctx.fillText(si.ico,~~(shx+W*0.065-7),~~(shy+6));
+    const have=inv[si.key]||0;
+    T('x'+have,shx+W*0.065-6,shy+20,have>0?'#ffd700':'#666',5);
+  });
+  SELL_ITEMS.slice(5).forEach((si,i)=>{
+    const shx=W*0.08+i*(W*0.16), shy=shelfY+28;
+    R(shx,shy,W*0.13,8,'#5a3a10');
+    ctx.font='14px serif';ctx.fillText(si.ico,~~(shx+W*0.065-7),~~(shy+6));
+    const have=inv[si.key]||0;
+    T('x'+have,shx+W*0.065-6,shy+20,have>0?'#ffd700':'#666',5);
+  });
+
+  // COUNTER (player stands behind it)
+  const ctrX=W/2-120, ctrY=H*0.48, ctrW=240, ctrH=30;
+  R(ctrX,ctrY,ctrW,ctrH,'#5a3a10');
+  O(ctrX,ctrY,ctrW,ctrH,'#8B6914',2);
+  // counter surface highlight
+  R(ctrX+2,ctrY+2,ctrW-4,8,'#7a5220');
+  // items on counter
+  ctx.font='16px serif';
+  ctx.fillText('🛒',~~(ctrX+ctrW/2-8),~~(ctrY-4));
+
+  // Register
+  R(ctrX+ctrW-50,ctrY-25,40,24,'#1a1a3e');O(ctrX+ctrW-50,ctrY-25,40,24,'#4a4a8e');
+  R(ctrX+ctrW-48,ctrY-23,14,10,'#7dd3fc');
+  ctx.font='10px serif';ctx.fillText('💰',~~(ctrX+ctrW-32),~~(ctrY-10));
+  T('REGISTER',ctrX+ctrW-52,ctrY-28,'#9ca3af',4);
+
+  // Shop sign
+  R(W/2-80,H*0.48-55,160,20,'#3b0764');O(W/2-80,H*0.48-55,160,20,'#c026d3',2);
+  T('🏪 MY SHOP',W/2-56,H*0.48-40,'#e879f9',7);
+
+  // Door (bottom center)
+  const doorX=W/2-25, doorY=H-54;
+  R(doorX,doorY,50,46,'#4a2800');O(doorX,doorY,50,46,'#8B6914',2);
+  R(doorX+18,doorY+16,14,14,'#7dd3fc');
+  R(doorX+22,doorY+28,6,6,'#ffd700');
+  T('[ESC] EXIT',doorX-10,doorY-6,'#e94560',4);
+
+  // Shop customers
+  shopCustomers.forEach(c=>{
+    const f=Math.floor(c.animT/10)%4;
+    drawChar(c.x,c.y,c.dir,c.color,'#334155',c.skinC||'#f0c27f',c.hairC,f,0.9);
+    // speech bubble
+    if(c.state==='waiting'&&c.want){
+      // bubble
+      R(c.x-28,c.y-46,56,20,'rgba(255,255,255,0.95)');O(c.x-28,c.y-46,56,20,'#666',1);
+      ctx.font='11px serif';ctx.fillText(c.want.ico,~~(c.x-22),~~(c.y-30));
+      T('🪙'+c.want.price,c.x-6,c.y-30,'#333',5);
+      // pointer triangle
+      ctx.fillStyle='rgba(255,255,255,0.95)';
+      ctx.beginPath();ctx.moveTo(~~(c.x-6),~~(c.y-27));ctx.lineTo(~~(c.x+6),~~(c.y-27));ctx.lineTo(~~c.x,~~(c.y-20));ctx.fill();
+    }
+    if(c.state==='buying'){
+      ctx.font='18px serif';ctx.fillText('😊',~~(c.x-9),~~(c.y-30));
+    }
+    if(c.state==='browsing'){
+      ctx.font='14px serif';ctx.fillText('👀',~~(c.x-7),~~(c.y-28));
+    }
+    // interact hint
+    if(c.state==='waiting'){
+      const dist=Math.hypot(player.x-c.x,player.y-c.y);
+      if(dist<70){
+        R(c.x-32,c.y-64,64,14,'#000');O(c.x-32,c.y-64,64,14,'#ffd700');
+        T('[E] SELL',c.x-30,c.y-53,'#ffd700',5);
+      }
+    }
+  });
+
+  // Player (behind counter area)
+  drawChar(player.x,player.y,player.dir,'#3498db','#2c3e50','#f0c27f','#4a2800',player.frame,1);
+  R(player.x-16,player.y-28,32,10,'rgba(0,0,0,0.6)');
+  T('YOU',player.x-13,player.y-21,'#ffd700',5);
+
+  // Earnings display
+  R(8,H*0.48-32,120,22,'rgba(0,0,0,0.8)');O(8,H*0.48-32,120,22,'#22c55e');
+  T('EARNED:🪙'+shopEarnings,12,H*0.48-16,'#22c55e',5);
+
+  // HUD strip
+  R(0,0,W,14,'rgba(0,0,0,0.7)');T('🏪 YOUR SHOP',8,11,'#ffd700',6);T('[ESC] Exit',W-80,11,'#e94560',6);
+
+  floats.forEach(f=>{ ctx.globalAlpha=f.life/f.maxLife; T(f.text,f.x,f.y,f.color,8); ctx.globalAlpha=1; });
+  particles.forEach(p=>{ ctx.globalAlpha=p.life/p.maxLife; R(p.x,p.y,p.s,p.s,p.color); ctx.globalAlpha=1; });
+}
+
+// ── SOUNDS (Web Audio API) ──
+let audioCtx=null;
+function getAudio(){ if(!audioCtx) audioCtx=new(window.AudioContext||window.webkitAudioContext)(); return audioCtx; }
+function playTone(freq,dur,type='sine',vol=0.18,detune=0){
+  try{
+    const ac=getAudio(); const o=ac.createOscillator(); const g=ac.createGain();
+    o.connect(g);g.connect(ac.destination);
+    o.type=type;o.frequency.value=freq;o.detune.value=detune;
+    g.gain.setValueAtTime(vol,ac.currentTime);g.gain.exponentialRampToValueAtTime(0.001,ac.currentTime+dur);
+    o.start(ac.currentTime);o.stop(ac.currentTime+dur);
+  }catch(e){}
+}
+function sndPickup(){ playTone(660,0.08,'square',0.12); setTimeout(()=>playTone(880,0.08,'square',0.12),80); }
+function sndCoin(){ playTone(523,0.07,'square',0.15); setTimeout(()=>playTone(659,0.07,'square',0.15),70); setTimeout(()=>playTone(784,0.12,'square',0.15),140); }
+function sndBuild(){ [220,330,440,550].forEach((f,i)=>setTimeout(()=>playTone(f,0.1,'sawtooth',0.1),i*60)); }
+function sndSleep(){ playTone(200,0.6,'sine',0.08); setTimeout(()=>playTone(150,0.8,'sine',0.06),300); }
+function sndEat(){ [400,350,300].forEach((f,i)=>setTimeout(()=>playTone(f,0.07,'square',0.1),i*50)); }
+function sndCook(){ [300,400,350,450].forEach((f,i)=>setTimeout(()=>playTone(f,0.05,'sawtooth',0.08),i*40)); }
+function sndBathe(){ for(let i=0;i<6;i++) setTimeout(()=>playTone(600+Math.random()*200,0.04,'sine',0.06),i*60); }
+function sndPC(){ [262,330,392,523].forEach((f,i)=>setTimeout(()=>playTone(f,0.08,'square',0.1),i*50)); }
+function sndStep(){ playTone(80+Math.random()*20,0.03,'square',0.04); }
+function sndEnter(){ [330,440,550,660].forEach((f,i)=>setTimeout(()=>playTone(f,0.09,'triangle',0.12),i*45)); }
+
+// ── ROOM LAYOUT (fixed positions, not % of W/H) ──
+// We define rooms as pixel-art scenes.
+// Each "zone" is a small cute furniture piece with an interaction point.
+// Layout: bedroom top-left, kitchen top-right, bathroom bot-right, dining mid, pc room top-center, exit bot-center
+
+// house interior zones — defined in design coords (0–1) but drawn as cute mini pixel rooms
+const ROOMS=[
+  { id:'bedroom', label:'Bedroom', key:'bedroom',
+    rx:0.04, ry:0.08, rw:0.26, rh:0.38,
+    wall:'#2a1e3e', floor:'#3d2b52', accent:'#6d3fa0',
+    ico:'🛏️', act:'sleep' },
+  { id:'kitchen', label:'Kitchen', key:'kitchen',
+    rx:0.37, ry:0.05, rw:0.26, rh:0.36,
+    wall:'#1a2e1a', floor:'#2d4a2d', accent:'#4a8a3a',
+    ico:'🍳', act:'cook' },
+  { id:'pcroom', label:'PC Room', key:'pcroom',
+    rx:0.70, ry:0.05, rw:0.26, rh:0.36,
+    wall:'#0f1a2e', floor:'#182840', accent:'#1e40af',
+    ico:'💻', act:'pc' },
+  { id:'dining', label:'Dining', key:'kitchen',
+    rx:0.37, ry:0.50, rw:0.26, rh:0.34,
+    wall:'#2e1a0e', floor:'#4a2d12', accent:'#8b5e2a',
+    ico:'🍽️', act:'eat' },
+  { id:'bathroom', label:'Bathroom', key:'bathroom',
+    rx:0.70, ry:0.50, rw:0.26, rh:0.34,
+    wall:'#0e2233', floor:'#163248', accent:'#0ea5e9',
+    ico:'🛁', act:'bathe' },
+];
+const EXIT_ZONE={ rx:0.42, ry:0.88, rw:0.16, rh:0.10 };
+
+// ── DRAW CUTE PIXEL FURNITURE ──
+function drawBed(cx,cy,s){
+  // Bed frame
+  R(cx-s*18,cy-s*10,s*36,s*22,'#6b3a1f');
+  R(cx-s*16,cy-s*8,s*32,s*18,'#8a4a28');
+  // Pillow
+  R(cx-s*14,cy-s*6,s*12,s*9,'#f0e6d3');
+  R(cx+s*2,cy-s*6,s*12,s*9,'#f0e6d3');
+  R(cx-s*13,cy-s*5,s*10,s*7,'#fffaf0');
+  // Blanket
+  R(cx-s*14,cy+s*1,s*28,s*9,'#5b8dd9');
+  R(cx-s*12,cy+s*2,s*24,s*5,'#4a7bc8');
+  // stripes
+  for(let i=0;i<4;i++) R(cx-s*10+i*s*7,cy+s*2,s*2,s*5,'#3a6ab8');
+  // Legs
+  R(cx-s*17,cy+s*11,s*4,s*4,'#4a2a0e'); R(cx+s*13,cy+s*11,s*4,s*4,'#4a2a0e');
+}
+function drawStove(cx,cy,s){
+  // body
+  R(cx-s*14,cy-s*14,s*28,s*26,'#6b7280');
+  R(cx-s*12,cy-s*12,s*24,s*22,'#9ca3af');
+  // burners (4 circles)
+  [[-7,-6],[5,-6],[-7,2],[5,2]].forEach(([bx,by])=>{
+    C2(cx+bx*s,cy+by*s,s*3.5,'#374151');
+    C2(cx+bx*s,cy+by*s,s*2,'#e74c3c');
+    C2(cx+bx*s,cy+by*s,s*1,'#ff8c00');
+  });
+  // panel
+  R(cx-s*12,cy+s*9,s*24,s*3,'#4b5563');
+  R(cx-s*8,cy+s*9,s*4,s*3,'#f59e0b');
+  // handle
+  R(cx-s*5,cy-s*18,s*10,s*4,'#6b7280');
+  R(cx-s*4,cy-s*17,s*8,s*2,'#9ca3af');
+}
+function drawPC(cx,cy,s){
+  // desk
+  R(cx-s*20,cy+s*6,s*40,s*5,'#5a3a10');
+  R(cx-s*18,cy+s*10,s*36,s*3,'#4a2a08');
+  // monitor stand
+  R(cx-s*3,cy+s*1,s*6,s*6,'#1f2937');
+  R(cx-s*7,cy+s*5,s*14,s*2,'#374151');
+  // monitor
+  R(cx-s*18,cy-s*14,s*36,s*16,'#111827');
+  O(cx-s*18,cy-s*14,s*36,s*16,'#4b5563',1);
+  R(cx-s*16,cy-s*12,s*32,s*12,'#0d1117');
+  // screen glow
+  ctx.fillStyle='rgba(56,189,248,0.15)';ctx.fillRect(~~(cx-s*16),~~(cy-s*12),~~(s*32),~~(s*12));
+  // screen content tiny
+  T('▓▒░',cx-s*12,cy-s*4,'#22c55e',s*3.5);
+  // keyboard
+  R(cx-s*14,cy+s*2,s*28,s*4,'#374151');
+  R(cx-s*12,cy+s*3,s*24,s*2,'#4b5563');
+  // mouse
+  R(cx+s*10,cy+s*2,s*5,s*4,'#4b5563');
+  C2(cx+s*12,cy+s*3,s*1,'#6b7280');
+}
+function drawTable(cx,cy,s){
+  // table top
+  R(cx-s*20,cy-s*8,s*40,s*5,'#7c5227');
+  R(cx-s*20,cy-s*8,s*40,s*3,'#a06d36');
+  // legs
+  R(cx-s*18,cy-s*3,s*4,s*16,'#5a3a10');
+  R(cx+s*14,cy-s*3,s*4,s*16,'#5a3a10');
+  // plate + food on table
+  C2(cx,cy-s*4,s*6,'#e5e7eb');C2(cx,cy-s*4,s*4,'#f9fafb');
+  ctx.font=~~(s*8)+'px serif';ctx.fillText('🍜',~~(cx-s*4),~~(cy-s*1));
+  // chair (front)
+  R(cx-s*5,cy+s*8,s*10,s*2,'#8b5e2a');
+  R(cx-s*4,cy+s*10,s*3,s*6,'#6b4a20');R(cx+s*1,cy+s*10,s*3,s*6,'#6b4a20');
+  R(cx-s*5,cy+s*5,s*10,s*4,'#a06d36');
+}
+function drawBathtub(cx,cy,s){
+  // tub outer
+  R(cx-s*20,cy-s*8,s*40,s*22,'#6b7280');
+  R(cx-s*18,cy-s*6,s*36,s*18,'#9ca3af');
+  // inside water
+  R(cx-s*16,cy-s*4,s*32,s*14,'#38bdf8');
+  R(cx-s*16,cy-s*4,s*32,s*4,'#7dd3fc');
+  // foam bubbles
+  [[-10,0],[-4,1],[2,-1],[8,0],[12,2]].forEach(([bx,by])=>C2(cx+bx*s,cy+by*s,s*2,'rgba(255,255,255,0.7)'));
+  // faucet
+  R(cx+s*14,cy-s*10,s*4,s*6,'#9ca3af');R(cx+s*12,cy-s*10,s*8,s*3,'#6b7280');
+  // drain
+  C2(cx,cy+s*9,s*2,'#374151');
+  // legs
+  R(cx-s*19,cy+s*12,s*3,s*4,'#4b5563');R(cx+s*16,cy+s*12,s*3,s*4,'#4b5563');
+}
+
+// ── ACTIVITY ANIMATIONS ──
+let actAnimT=0; // ticks since activity started
+
+function drawSleepAnim(cx,cy){
+  const b=Math.sin(actAnimT*0.05)*1.5;
+  // body lying horizontal
+  R(cx-17,cy-2+b,34,9,'#3498db');
+  R(cx-17,cy+7+b,34,6,'#2c3e50');
+  R(cx-23,cy-5+b,12,12,'#f0c27f');  // head
+  R(cx-25,cy-7+b,15,8,'#fffaf0');   // pillow
+  R(cx-24,cy-5+b,14,4,'#4a2800');   // hair
+  ctx.fillStyle='rgba(91,141,217,0.65)';ctx.fillRect(~~(cx-18),~~(cy-1+b),~~35,~~14);
+  const zp=actAnimT*0.04;
+  [[0,0],[7,-5],[13,-9]].forEach(([zx,zy],i)=>{
+    const a=Math.max(0,Math.sin(zp-i*1.2));
+    ctx.globalAlpha=a*0.9;
+    T('z',cx+zx,cy+zy,actAnimT%60<30?'#a5b4fc':'#93c5fd',5+i);
+    ctx.globalAlpha=1;
+  });
+}
+
+function drawEatAnim(cx,cy){
+  R(cx-6,cy+2,13,11,'#2c3e50');
+  R(cx-5,cy-8,11,11,'#3498db');
+  R(cx-5,cy-18,11,11,'#f0c27f');
+  R(cx-5,cy-18,11,4,'#4a2800');
+  R(cx-3,cy-13,2,2,'#000');R(cx+2,cy-13,2,2,'#000');
+  const fk=Math.sin(actAnimT*0.22)*4;
+  R(cx+5,cy-4+fk,3,7,'#3498db');
+  R(cx+6,cy-9+fk,2,7,'#9ca3af');
+  R(cx+5,cy-13+fk,3,2,'#9ca3af');
+  ctx.font=actAnimT%20<10?'13px serif':'12px serif';
+  ctx.fillText(actAnimT%20<10?'😋':'😊',~~(cx-7),~~(cy-22));
+  if(actAnimT%12===0) spawnPLocal(cx,cy-10,'#f59e0b');
+}
+
+function drawCookAnim(cx,cy){
+  drawChar(cx,cy,0,'#3498db','#2c3e50','#f0c27f','#4a2800',Math.floor(actAnimT/10)%2,0.7);
+  const st=actAnimT*0.07;
+  for(let i=0;i<3;i++){
+    const sx2=cx+10+i*4, sy2=cy-8-Math.sin(st+i)*7-(actAnimT%30);
+    ctx.globalAlpha=Math.max(0,0.5-(actAnimT%30)*0.017);
+    R(sx2,sy2,2,6,'#e5e7eb');
+    ctx.globalAlpha=1;
+  }
+  R(cx+6,cy,18,4,actAnimT%8<4?'#f59e0b':'#ef4444');
+}
+
+function drawBatheAnim(cx,cy){
+  R(cx-8,cy,16,10,'#38bdf8');
+  R(cx-5,cy-11,11,11,'#f0c27f');
+  R(cx-5,cy-11,11,4,'#4a2800');
+  R(cx-3,cy-6,2,2,'#000');R(cx+2,cy-6,2,2,'#000');
+  R(cx-2,cy-3,5,2,'#c0392b');
+  const wt=actAnimT*0.15;
+  for(let i=0;i<5;i++){
+    ctx.globalAlpha=0.55;
+    R(cx-14+i*7,cy+Math.sin(wt+i)*3,4,3,'#7dd3fc');
+    ctx.globalAlpha=1;
+  }
+  if(actAnimT%18===0) spawnPLocal(cx+(Math.random()-.5)*18,cy+4,'#bfdbfe');
+  ctx.font='10px serif';ctx.fillText('✨',~~(cx+10),~~(cy-14));
+}
+
+let localParticles=[];
+function spawnPLocal(x,y,c){
+  for(let i=0;i<3;i++) localParticles.push({x,y,vx:(Math.random()-.5)*2,vy:-Math.random()*2-0.5,color:c,s:2+Math.random()*2,life:20,maxLife:20});
+}
+
+// ── HOUSE INTERIOR ──
+function drawInterior(){
+  // Background - warm wallpaper
+  R(0,0,W,H,'#3d2b1a');
+  // Wallpaper pattern
+  ctx.fillStyle='#4a3422';
+  for(let wx=0;wx<W;wx+=24) for(let wy=0;wy<H;wy+=24)
+    if(((wx/24+wy/24)%2)===0) ctx.fillRect(wx,wy,23,23);
+
+  // Wood floor
+  for(let fx=0;fx<W;fx+=60){
+    const shade=((fx/60)%2===0)?'#6b4a25':'#7c5a30';
+    R(fx,H*0.6,60,H,'#6b4a25');
+    R(fx,H*0.6,58,H-~~(H*0.6),shade);
+    ctx.strokeStyle='#4a3010';ctx.lineWidth=1;
+    ctx.strokeRect(~~fx,~~(H*0.6),60,~~(H-H*0.6));
+  }
+
+  // Ceiling
+  R(0,0,W,22,'#2a1c10');
+  // Crown molding
+  R(0,22,W,6,'#5a3a1a');
+
+  // ROOM DIVIDERS (wall sections between rooms)
+  R(W*0.33-3,25,6,H*0.85,'#2a1c10');
+  R(W*0.66-3,25,6,H*0.85,'#2a1c10');
+  R(0,H*0.48-3,W,6,'#2a1c10');
+
+   // Room labels only (no background boxes)
+  ROOMS.forEach(rm=>{
+    const rx=rm.rx*W, ry=rm.ry*H+28;
+    T(rm.label,rx+6,ry+16,rm.accent+'cc',5);
+  });
+
+  // ── DRAW CUTE FURNITURE IN EACH ROOM ──
+  const fs=0.95;
+
+  // BEDROOM (top-left)
+  {
+    const rm=ROOMS[0];
+    const cx=(rm.rx+rm.rw/2)*W, cy=(rm.ry+rm.rh/2)*(H-28)+28+6;
+    drawBed(cx,cy,fs);
+    R(cx+16,cy-14,10,10,'#5a3a10');R(cx+16,cy-14,10,3,'#7c5227');
+    ctx.font='9px serif';ctx.fillText('💡',~~(cx+17),~~(cy-4));
+    if(hAct==='sleep') drawSleepAnim(cx,cy+2);
+    const dist=Math.hypot(player.x-(rm.rx+rm.rw/2)*W, player.y-(rm.ry+rm.rh/2)*(H-28)+28);
+    if(dist<70&&!hAct&&hDone('bedroom')) T('[E] SLEEP',cx-28,cy-30,'#ffd700',5);
+    if(!hDone('bedroom')){ ctx.font='14px serif';ctx.fillText('🔒',~~(cx-7),~~(cy+8)); }
+  }
+
+  // KITCHEN (top-center)
+  {
+    const rm=ROOMS[1];
+    const cx=(rm.rx+rm.rw/2)*W, cy=(rm.ry+rm.rh/2)*(H-28)+28;
+    drawStove(cx+10,cy,fs);
+    R(cx-22,cy-8,16,18,'#7c5227');R(cx-22,cy-8,16,4,'#a06d36');
+    ctx.font='10px serif';ctx.fillText('🍞',~~(cx-21),~~(cy));
+    // cook anim draws its own char — do NOT draw player separately when cooking
+    if(hAct==='cook') drawCookAnim(cx-18,cy);
+    const dist=Math.hypot(player.x-(rm.rx+rm.rw/2)*W, player.y-(rm.ry+rm.rh/2)*(H-28)+28);
+    if(dist<70&&!hAct&&hDone('kitchen')) T('[E] COOK',cx-26,cy-30,'#ffd700',5);
+    if(!hDone('kitchen')){ ctx.font='14px serif';ctx.fillText('🔒',~~(cx-7),~~(cy+8)); }
+  }
+
+  // PC ROOM (top-right)
+  {
+    const rm=ROOMS[2];
+    const cx=(rm.rx+rm.rw/2)*W, cy=(rm.ry+rm.rh/2)*(H-28)+28;
+    drawPC(cx,cy,fs);
+    const dist=Math.hypot(player.x-(rm.rx+rm.rw/2)*W, player.y-(rm.ry+rm.rh/2)*(H-28)+28);
+    if(dist<70&&!hAct&&hDone('pcroom')) T('[E] PC',cx-16,cy-30,'#ffd700',5);
+    if(!hDone('pcroom')){ ctx.font='14px serif';ctx.fillText('🔒',~~(cx-7),~~(cy+8)); }
+  }
+
+  // DINING (bottom-center)
+  {
+    const rm=ROOMS[3];
+    const cx=(rm.rx+rm.rw/2)*W, cy=(rm.ry+rm.rh/2)*(H-28)+28;
+    drawTable(cx,cy,fs);
+    if(hAct==='eat') drawEatAnim(cx,cy+10);
+    const dist=Math.hypot(player.x-(rm.rx+rm.rw/2)*W, player.y-(rm.ry+rm.rh/2)*(H-28)+28);
+    if(dist<70&&!hAct&&hDone('kitchen')) T('[E] EAT',cx-22,cy-30,'#ffd700',5);
+    if(!hDone('kitchen')){ ctx.font='14px serif';ctx.fillText('🔒',~~(cx-7),~~(cy)); }
+  }
+
+  // BATHROOM (bottom-right)
+  {
+    const rm=ROOMS[4];
+    const cx=(rm.rx+rm.rw/2)*W, cy=(rm.ry+rm.rh/2)*(H-28)+28;
+    drawBathtub(cx,cy,fs);
+    R(cx-14,cy-24,28,4,'#5a3a10');
+    ctx.font='9px serif';ctx.fillText('🧴',~~(cx-13),~~(cy-16));ctx.fillText('🪥',~~(cx+2),~~(cy-16));
+    if(hAct==='bathe') drawBatheAnim(cx,cy);
+    const dist=Math.hypot(player.x-(rm.rx+rm.rw/2)*W, player.y-(rm.ry+rm.rh/2)*(H-28)+28);
+    if(dist<70&&!hAct&&hDone('bathroom')) T('[E] BATHE',cx-28,cy-30,'#ffd700',5);
+    if(!hDone('bathroom')){ ctx.font='14px serif';ctx.fillText('🔒',~~(cx-7),~~(cy)); }
+  }
+
+  // EXIT DOOR (bottom-center)
+  {
+    const ex=EXIT_ZONE.rx*W, ey=EXIT_ZONE.ry*(H-28)+28;
+    const ew=EXIT_ZONE.rw*W, eh=EXIT_ZONE.rh*(H-28);
+    R(ex,ey,ew,eh,'#2a1a08');O(ex,ey,ew,eh,'#8B6914',2);
+    // door
+    R(ex+ew/2-14,ey+4,28,eh-8,'#4a2800');O(ex+ew/2-14,ey+4,28,eh-8,'#8B6914');
+    R(ex+ew/2-2,ey+eh/2-2,6,6,'#ffd700');
+    // window in door
+    R(ex+ew/2-8,ey+8,16,12,'#7dd3fc');
+    T('[E]EXIT',ex+ew/2-26,ey-6,'#e94560',5);
+    // sunlight effect
+    const dist2=Math.hypot(player.x-(ex+ew/2),player.y-(ey+eh/2));
+    if(dist2<60){
+      ctx.fillStyle='rgba(255,215,0,0.12)';
+      ctx.beginPath();ctx.arc(~~(ex+ew/2),~~(ey+eh/2),50,0,Math.PI*2);ctx.fill();
+    }
+  }
+
+  // Player character (hide during activities that show char inside furniture)
+  if(hAct!=='sleep'&&hAct!=='bathe'&&hAct!=='eat'&&hAct!=='cook'){
+    drawChar(player.x,player.y,player.dir,'#3498db','#2c3e50','#f0c27f','#4a2800',player.frame,1);
+  }
+
+  // Activity progress bar
+  if(hAct){
+    R(0,H-60,W,60,'rgba(0,0,0,0.85)');
+    const lbs={sleep:'💤 Sleeping...',cook:'🍳 Cooking...',pc:'💻 Using PC...',eat:'🍽️ Eating...',bathe:'🛁 Bathing...'};
+    T(lbs[hAct]||'...',W/2-70,H-38,'#6ee7b7',8);
+    R(40,H-22,W-80,12,'#1f2937');O(40,H-22,W-80,12,'#374151');
+    R(40,H-22,(W-80)*hProg,12,'#22c55e');
+    // cancel hint
+    T('[ESC] Cancel',W-100,H-8,'#e94560',5);
+  }
+
+  // Local particles
+  localParticles=localParticles.filter(p=>{
+    p.x+=p.vx;p.y+=p.vy;p.vy+=0.1;p.life--;
+    ctx.globalAlpha=p.life/p.maxLife;R(p.x,p.y,p.s,p.s,p.color);ctx.globalAlpha=1;
+    return p.life>0;
+  });
+
+  // Float texts
+  floats.forEach(f=>{ ctx.globalAlpha=f.life/f.maxLife; T(f.text,f.x,f.y,f.color,8); ctx.globalAlpha=1; });
+  particles.forEach(p=>{ ctx.globalAlpha=p.life/p.maxLife; R(p.x,p.y,p.s,p.s,p.color); ctx.globalAlpha=1; });
+
+  // Top HUD
+  R(0,0,W,24,'rgba(20,10,5,0.9)');T('🏠 YOUR HOUSE',8,17,'#ffd700',7);T('[ESC] Exit',W-84,17,'#e94560',6);
+}
+
+// ── PC FULLSCREEN SCENE ──
+let pcTotalEarned=0; // tracked separately
+function drawPCScreen(){
+  // Room background still visible at edges
+  R(0,0,W,H,'#1a1a2e');
+
+  // Monitor outer bezel (dark plastic)
+  const bx=W*0.04, by=H*0.02, bw=W*0.92, bh=H*0.84;
+  R(bx-10,by-10,bw+20,bh+20,'#2d2d2d');
+  R(bx-6,by-6,bw+12,bh+12,'#3a3a3a');
+  O(bx-10,by-10,bw+20,bh+20,'#555',2);
+
+  // ── WHITE SCREEN BACKGROUND ──
+  R(bx,by,bw,bh,'#f0f4f8');
+  // subtle grid lines like a real OS desktop
+  ctx.strokeStyle='rgba(200,210,220,0.5)';ctx.lineWidth=1;
+  for(let gx=bx;gx<bx+bw;gx+=40){ctx.beginPath();ctx.moveTo(~~gx,~~by);ctx.lineTo(~~gx,~~(by+bh));ctx.stroke();}
+  for(let gy=by;gy<by+bh;gy+=40){ctx.beginPath();ctx.moveTo(~~bx,~~gy);ctx.lineTo(~~(bx+bw),~~gy);ctx.stroke();}
+
+  // ── TASKBAR (top, like a real OS) ──
+  R(bx,by,bw,28,'#2563eb');
+  // OS logo
+  R(bx+4,by+4,20,20,'#fff');T('P',bx+8,by+19,'#2563eb',8);
+  T('PIXEL OS',bx+30,by+19,'#fff',7);
+  // clock in taskbar
+  const hr=Math.floor(gameTime/DAY_LEN*24), mn=Math.floor((gameTime/DAY_LEN*24-hr)*60);
+  T(`${String(hr).padStart(2,'0')}:${String(mn).padStart(2,'0')}`,bx+bw-52,by+19,'#fff',6);
+  // minimize/close buttons
+  R(bx+bw-82,by+6,16,16,'#fbbf24');R(bx+bw-60,by+6,16,16,'#22c55e');R(bx+bw-38,by+6,16,16,'#ef4444');
+  T('−',bx+bw-79,by+19,'#000',7);T('+',bx+bw-57,by+19,'#000',7);T('×',bx+bw-35,by+19,'#000',7);
+
+  // ── PROFILE CARD ──
+  const pw=bw*0.28, ph=bh*0.52;
+  const px2=bx+14, py2=by+38;
+  R(px2,py2,pw,ph,'#fff');O(px2,py2,pw,ph,'#cbd5e1',2);
+  // header
+  R(px2,py2,pw,22,'#1e40af');
+  T('MY PROFILE',px2+8,py2+15,'#fff',6);
+  // avatar bg
+  R(px2+pw/2-22,py2+28,44,44,'#dbeafe');O(px2+pw/2-22,py2+28,44,44,'#93c5fd');
+  drawChar(px2+pw/2,py2+62,0,'#3498db','#2c3e50','#f0c27f','#4a2800',Math.floor(actAnimT/20)%4,0.9);
+  T('YOU',px2+pw/2-10,py2+82,'#1e40af',5);
+  // divider
+  R(px2+8,py2+88,pw-16,1,'#e2e8f0');
+  // stats with colored bars
+  const stats=[['❤️','HP',hp,100,'#ef4444'],['⚡','Energy',energy,100,'#f59e0b'],['🍔','Hunger',hunger,100,'#22c55e'],['📅','Day',day,30,'#8b5cf6']];
+  stats.forEach(([ico,lbl,val,mx,bc],i)=>{
+    const sy=py2+96+i*26;
+    ctx.font='10px serif';ctx.fillText(ico,~~(px2+10),~~(sy+9));
+    T(lbl,px2+26,sy+9,'#475569',5);
+    R(px2+pw-56,sy+2,48,10,'#e2e8f0');
+    R(px2+pw-56,sy+2,48*(Math.min(val,mx)/mx),10,bc);
+    T(val+'',px2+pw-56,sy+20,'#64748b',4);
+  });
+  // coins box
+  R(px2+8,py2+ph-36,pw-16,28,'#fef3c7');O(px2+8,py2+ph-36,pw-16,28,'#fde68a');
+  T('🪙 TOTAL COINS',px2+12,py2+ph-20,'#92400e',5);
+  T(coins+'',px2+pw-36,py2+ph-8,'#d97706',7);
+
+  // ── INVENTORY PANEL ──
+  const iw=bw*0.28, ih=bh*0.52;
+  const ix=bx+bw*0.36, iy=by+38;
+  R(ix,iy,iw,ih,'#fff');O(ix,iy,iw,ih,'#cbd5e1',2);
+  R(ix,iy,iw,22,'#0891b2');
+  T('INVENTORY',ix+8,iy+15,'#fff',6);
+  const invItems=[['🍞','Bread',inv.bread],['🥕','Veggie',inv.veggie],['🎂','Cake',inv.cake],
+                  ['🪵','Lumber',inv.lumber],['🔧','Tools',inv.tool],['🔩','Nails',inv.nail],
+                  ['🧱','Bricks',inv.brick],['🪟','Glass',inv.glass],['🔌','Wiring',inv.wire],['🚿','Pipes',inv.pipe]];
+  invItems.forEach(([ico,nm,qty],i)=>{
+    const col=i%2, row=Math.floor(i/2);
+    const cx2=ix+8+col*(iw/2), cy2=iy+30+row*22;
+    R(cx2,cy2,iw/2-4,20,qty>0?'#f0fdf4':'#f8fafc');O(cx2,cy2,iw/2-4,20,'#e2e8f0');
+    ctx.font='10px serif';ctx.fillText(ico,~~(cx2+3),~~(cy2+14));
+    T(nm,cx2+17,cy2+13,qty>0?'#065f46':'#94a3b8',4);
+    T('×'+qty,cx2+iw/2-20,cy2+13,qty>0?'#059669':'#94a3b8',5);
+  });
+
+  // ── STREAMING / ACTIVITY PANEL ──
+  const sw=bw*0.28, ssh=bh*0.52;
+  const sx2=bx+bw*0.68+6, sy2=by+38;
+  R(sx2,sy2,sw,ssh,'#fff');O(sx2,sy2,sw,ssh,'#cbd5e1',2);
+  R(sx2,sy2,sw,22,'#7c3aed');
+  T('STREAMING',sx2+8,sy2+15,'#fff',6);
+  // live badge
+  R(sx2+sw/2-20,sy2+28,40,14,'#ef4444');T('LIVE',sx2+sw/2-14,sy2+39,'#fff',6);
+  ctx.font='28px serif';ctx.fillText('📺',~~(sx2+sw/2-14),~~(sy2+74));
+  const barPct=(Math.sin(actAnimT*0.04)+1)/2;
+  // viewer bar
+  T('VIEWERS',sx2+10,sy2+90,'#64748b',5);
+  R(sx2+10,sy2+95,sw-20,10,'#e2e8f0');
+  R(sx2+10,sy2+95,(sw-20)*barPct,10,'#7c3aed');
+  T(''+(100+Math.floor(barPct*900)),sx2+sw-40,sy2+103,'#7c3aed',5);
+  // earnings
+  R(sx2+10,sy2+112,sw-20,28,'#f0fdf4');O(sx2+10,sy2+112,sw-20,28,'#bbf7d0');
+  T('EARNING',sx2+14,sy2+124,'#065f46',5);
+  T('+🪙'+Math.floor(barPct*30)+'/hr',sx2+14,sy2+136,'#059669',6);
+  // chart bars (fake activity)
+  for(let ci=0;ci<8;ci++){
+    const bh2=8+Math.sin(actAnimT*0.08+ci)*14+14;
+    const bc2=ci===Math.floor(actAnimT/20)%8?'#7c3aed':'#c4b5fd';
+    R(sx2+10+ci*(sw-20)/8,sy2+ssh-30-bh2,(sw-20)/8-2,bh2,bc2);
+  }
+
+  // ── GAMES ROW (bottom strip) ──
+  R(bx,by+bh*0.62,bw,bh*0.36,'#f8fafc');O(bx,by+bh*0.62,bw,bh*0.36,'#e2e8f0');
+  T('🎮  INSTALLED GAMES',bx+12,by+bh*0.62+16,'#1e293b',7);
+  const games=[['🎯','AimLab','FPS'],['🧩','Puzzle','Brain'],['⚔️','RPG Quest','RPG'],['🏎️','Racing+','Race'],['🎲','Casino','Luck'],['🃏','CardGame','Cards'],['🎸','GuitarHero','Music']];
+  games.forEach(([gico,gnm,gcat],i)=>{
+    const gx=bx+14+i*(bw/7), gy=by+bh*0.62+24;
+    const active=i===Math.floor(actAnimT/60)%7;
+    R(gx,gy,bw/7-6,bh*0.3,'#fff');O(gx,gy,bw/7-6,bh*0.3,active?'#2563eb':'#e2e8f0',active?2:1);
+    if(active) R(gx,gy,bw/7-6,3,'#2563eb');
+    ctx.font='18px serif';ctx.fillText(gico,~~(gx+(bw/7-6)/2-9),~~(gy+30));
+    T(gnm,gx+(bw/7-6)/2-gnm.length*2.8,gy+42,'#334155',4);
+    T(gcat,gx+(bw/7-6)/2-gcat.length*2,gy+52,'#94a3b8',4);
+    if(active){R(gx+4,gy+bh*0.3-14,bw/7-14,10,'#2563eb');T('PLAYING',gx+6,gy+bh*0.3-7,'#fff',4);}
+  });
+
+  // Monitor stand
+  R(W/2-18,by+bh+2,36,14,'#555');R(W/2-36,by+bh+14,72,6,'#666');
+
+  // Bottom exit hint (no box, just text)
+  T('[ESC] or Right-click — Close PC',W/2-110,H-8,'#64748b',5);
+}
+
+// ── UPDATE ──
+function update(){
+  if(SCENE==='menu') return;
+  gameTime=(gameTime+1)%DAY_LEN;
+  if(gameTime===0){ day++; energy=Math.min(100,energy+30); hunger=Math.max(0,hunger-15); addMsg('New day! Rest to restore energy.'); }
+  if(interactCD>0) interactCD--;
+  floats=floats.filter(f=>{f.y-=0.5;f.life--;return f.life>0;});
+  particles=particles.filter(p=>{p.x+=p.vx;p.y+=p.vy;p.vy+=0.18;p.life--;return p.life>0;});
+  groundCoins.forEach(c=>c.bobT+=0.06);
+  townGroundItems.forEach(i=>{ i.bobT+=0.05; if(i.respawnIn>0){i.respawnIn--;if(i.respawnIn===0)i.collected=false;} });
+
+  // ── CONTINUOUS ITEM RESPAWN: ensure each job building always has items nearby ──
+  if(SCENE==='town'){
+    BUILDINGS.filter(b=>b.type==='job').forEach(b=>{
+      const active=townGroundItems.filter(i=>i.bid===b.id&&!i.collected);
+      if(active.length<2){
+        spawnGI(b);
+      }
+    });
+  }
+
+  if(SCENE==='town') updateTown();
+  if(SCENE==='interior'||SCENE==='pcscreen') updateInterior();
+  if(SCENE==='shop') updateShop();
+
+  document.getElementById('time-bar').style.width=(gameTime/DAY_LEN*100)+'%';
+  updateHUD();
+}
+
+function updateTown(){
+  let mx=0,my=0;
+  if(keys['ArrowLeft']||keys['a']||keys['A']){mx=-player.speed;player.dir=2;}
+  if(keys['ArrowRight']||keys['d']||keys['D']){mx=player.speed;player.dir=3;}
+  if(keys['ArrowUp']||keys['w']||keys['W']){my=-player.speed;player.dir=1;}
+  if(keys['ArrowDown']||keys['s']||keys['S']){my=player.speed;player.dir=0;}
+  if(mx&&my){mx*=0.707;my*=0.707;}
+
+  const nx=Math.max(10,Math.min(MAP_W-10,player.x+mx));
+  const ny=Math.max(10,Math.min(MAP_H-10,player.y+my));
+
+  // Building collision — check all buildings except houseplot/myshop approaches
+  let blocked=false;
+  for(const b of BUILDINGS){
+    if(b.type==='houseplot'||b.type==='myshop') continue;
+    if(buildingCollides(b.x,b.y,b.w,b.h,nx,ny)){ blocked=true; break; }
+  }
+  // Tree collision (smaller radius)
+  if(!blocked){
+    for(const t of TREES){
+      if(Math.hypot(nx-t.x,ny-t.y)<12){ blocked=true; break; }
+    }
+  }
+  if(!blocked){ player.x=nx; player.y=ny; }
+
+  if(mx||my){ player.animT++; if(player.animT%7===0) player.frame=(player.frame+1)%4; }
+
+  cam.x=Math.max(0,Math.min(MAP_W-W,player.x-W/2));
+  cam.y=Math.max(0,Math.min(MAP_H-H,player.y-H/2));
+
+  buildingCustomers.forEach(c=>{
+    c.animT++;
+    if(c.state==='waiting'){ c.waitT++; if(c.waitT>c.maxWait){ c.state='leaving'; addFloat(c.x,c.y-20,'Left 😞','#e94560'); } }
+    if(c.state==='happy'){ c.leaveT--; if(c.leaveT<=0) c.state='leaving'; }
+    if(c.state==='leaving'){ c.y+=1.8; if(c.y>MAP_H+80){ const b2=BUILDINGS.find(bb=>bb.id===c.bid); Object.assign(c,makeCust(b2)); } }
+  });
+
+  groundCoins.filter(c=>!c.collected).forEach(c=>{
+    if(Math.hypot(player.x-c.x,player.y-c.y)<18){ c.collected=true; coins+=c.val; addFloat(c.x,c.y-10,'+'+c.val+'🪙','#ffd700'); sndCoin(); updateHUD(); }
+  });
+}
+
+function updateInterior(){
+  if(SCENE==='pcscreen'){
+    actAnimT++;
+    if(keys['Escape']){ SCENE='interior'; hAct=null; hProg=0; finishAct('pc'); addMsg('Closed PC. Coins earned!'); }
+    return;
+  }
+  let mx=0,my=0;
+  if(keys['ArrowLeft']||keys['a']||keys['A']){mx=-player.speed;player.dir=2;}
+  if(keys['ArrowRight']||keys['d']||keys['D']){mx=player.speed;player.dir=3;}
+  if(keys['ArrowUp']||keys['w']||keys['W']){my=-player.speed;player.dir=1;}
+  if(keys['ArrowDown']||keys['s']||keys['S']){my=player.speed;player.dir=0;}
+  if(mx&&my){mx*=0.707;my*=0.707;}
+  player.x=Math.max(60,Math.min(W-60,player.x+mx));
+  player.y=Math.max(28,Math.min(H-40,player.y+my));
+  if(mx||my){
+    player.animT++;
+    if(player.animT%8===0){ player.frame=(player.frame+1)%4; if(Math.random()<0.3) sndStep(); }
+  }
+  if(hAct){ actAnimT++; hTimer--; hProg=1-hTimer/300; if(hTimer<=0){ finishAct(hAct); hAct=null; hProg=0; actAnimT=0; } }
+  if(keys['Escape']&&!hAct) exitHouse();
+  if(keys['Escape']&&hAct){ hAct=null; hProg=0; actAnimT=0; addMsg('Cancelled.'); }
+}
+
+// ── SHOP UPDATE ──
+function updateShop(){
+  let mx=0,my=0;
+  if(keys['ArrowLeft']||keys['a']||keys['A']){mx=-player.speed;player.dir=2;}
+  if(keys['ArrowRight']||keys['d']||keys['D']){mx=player.speed;player.dir=3;}
+  if(keys['ArrowUp']||keys['w']||keys['W']){my=-player.speed;player.dir=1;}
+  if(keys['ArrowDown']||keys['s']||keys['S']){my=player.speed;player.dir=0;}
+  if(mx&&my){mx*=0.707;my*=0.707;}
+
+  // Player stays behind/at counter area roughly
+  player.x=Math.max(60,Math.min(W-60,player.x+mx));
+  player.y=Math.max(H*0.45,Math.min(H-60,player.y+my));
+  if(mx||my){ player.animT++; if(player.animT%7===0) player.frame=(player.frame+1)%4; }
+
+  // Shop customer AI
+  shopCustomers.forEach(c=>{
+    c.animT++;
+    c.bobT+=0.04;
+
+    if(c.state==='browsing'){
+      // Wander around
+      c.thinkT--;
+      c.x+=c.vx; c.y+=c.vy;
+      c.x=Math.max(60,Math.min(W-60,c.x));
+      c.y=Math.max(70,Math.min(H*0.42,c.y));
+      if(c.thinkT<=0){
+        c.thinkT=60+Math.floor(Math.random()*90);
+        c.vx=(Math.random()-.5)*1.5;c.vy=(Math.random()-.5)*1.5;
+        // refresh want
+        const items=SELL_ITEMS.filter(si=>(inv[si.key]||0)>0);
+        if(items.length>0){
+          c.want=items[Math.floor(Math.random()*items.length)];
+          c.state='waiting';c.waitT=0;
+          c.vx=0;c.vy=0;
+        }
+      }
+    }
+    if(c.state==='waiting'){
+      c.waitT++;
+      if(c.waitT>c.maxWait){ c.state='browsing'; c.want=null; c.thinkT=40; addFloat2(c.x,c.y-20,'Gave up 😒','#e94560'); }
+    }
+    if(c.state==='buying'){
+      c.leaveT--;
+      if(c.leaveT<=0){ c.state='leaving'; c.vy=2; }
+    }
+    if(c.state==='leaving'){
+      c.y+=2.5;
+      if(c.y>H+60){
+        // Respawn as new customer
+        const nc=makeShopCust(c.id);
+        Object.assign(c,nc);
+      }
+    }
+    // Face direction of movement
+    if(c.vx<-0.2) c.dir=2;
+    else if(c.vx>0.2) c.dir=3;
+    else c.dir=0;
+  });
+
+  // Periodically refresh wants for browsing customers
+  if(gameTime%120===0){
+    shopCustomers.filter(sc=>sc.state==='browsing').forEach(sc=>{
+      const items=SELL_ITEMS.filter(si=>(inv[si.key]||0)>0);
+      if(items.length>0&&Math.random()<0.5){
+        sc.want=items[Math.floor(Math.random()*items.length)];
+        sc.state='waiting'; sc.waitT=0; sc.vx=0; sc.vy=0;
+      }
+    });
+  }
+
+  if(keys['Escape']) exitShop();
+}
+
+// ── INTERACT ──
+function interact(){
+  if(interactCD>0) return;
+  interactCD=18;
+  if(SCENE==='town') iTown();
+  else if(SCENE==='interior') iInterior();
+  else if(SCENE==='shop') iShop();
+}
+
+function iTown(){
+  const px=player.x,py=player.y;
+  for(const it of townGroundItems){
+    if(!it.collected&&Math.hypot(px-it.x,py-it.y)<40){
+      it.collected=true;it.respawnIn=500+Math.random()*300;
+      inv[it.key]=(inv[it.key]||0)+1;
+      addFloat(it.x,it.y-15,'+'+it.ico,'#4ade80');
+      spawnP(it.x,it.y,'#4ade80'); sndPickup();
+      addMsg('Picked up '+it.iname+'!');
+      updateInvUI(); return;
+    }
+  }
+  for(const c of buildingCustomers){
+    if(c.state==='waiting'&&Math.hypot(px-c.x,py-c.y)<55){
+      c.state='happy';c.leaveT=90;
+      spawnCoin(c.x,c.y-10,c.coinVal);
+      addFloat(c.x,c.y-30,'+'+c.coinVal+'🪙','#ffd700');
+      spawnP(c.x,c.y,'#ffd700');
+      addMsg('Customer served! Coin dropped!'); return;
+    }
+  }
+  const hp2=BUILDINGS.find(b=>b.id==='houseplot');
+  if(Math.hypot(px-(hp2.x+hp2.w/2),py-(hp2.y+hp2.h+16))<60){
+    if(builtCount()<3){ addMsg('Need Foundation + Walls + Roof first! Press [H]'); return; }
+    enterHouse(); return;
+  }
+  const ms=BUILDINGS.find(b=>b.id==='myshop');
+  if(Math.hypot(px-(ms.x+ms.w/2),py-(ms.y+ms.h+9))<60){
+    enterShop(); return;
+  }
+}
+
+function iInterior(){
+  if(hAct) return;
+  // Check exit door
+  const ex=(EXIT_ZONE.rx+EXIT_ZONE.rw/2)*W, ey=(EXIT_ZONE.ry+EXIT_ZONE.rh/2)*(H-28)+28;
+  if(Math.hypot(player.x-ex,player.y-ey)<60){ exitHouse(); return; }
+  // Check room zones
+  for(const rm of ROOMS){
+    const cx=(rm.rx+rm.rw/2)*W, cy=(rm.ry+rm.rh/2)*(H-28)+28;
+    if(Math.hypot(player.x-cx,player.y-cy)<72){
+      const avail=rm.key===null||hDone(rm.key);
+      if(!avail){ addMsg('Build the '+rm.key+' first! Press [H].'); return; }
+      if(rm.act==='pc'){ SCENE='pcscreen'; actAnimT=0; sndPC(); addMsg('PC turned on! [ESC] to close.'); return; }
+      hAct=rm.act; hTimer=300; hProg=0; actAnimT=0;
+      if(rm.act==='sleep') sndSleep();
+      if(rm.act==='eat') sndEat();
+      if(rm.act==='cook') sndCook();
+      if(rm.act==='bathe') sndBathe();
+      addMsg('Doing: '+rm.label+'...'); return;
+    }
+  }
+}
+
+function iShop(){
+  // Find nearest waiting customer
+  let nearest=null, nearDist=80;
+  shopCustomers.forEach(c=>{
+    if(c.state==='waiting'){
+      const d=Math.hypot(player.x-c.x,player.y-c.y);
+      if(d<nearDist){ nearDist=d; nearest=c; }
+    }
+  });
+  if(nearest&&nearest.want){
+    const si=nearest.want;
+    if((inv[si.key]||0)>0){
+      inv[si.key]--;
+      coins+=si.price;
+      shopEarnings+=si.price;
+      nearest.state='buying';nearest.leaveT=80;
+      addFloat2(nearest.x,nearest.y-30,'+🪙'+si.price+' '+si.ico,'#ffd700');
+      spawnP(nearest.x,nearest.y,'#ffd700'); sndCoin();
+      addMsg('Sold '+si.name+' for 🪙'+si.price+'!');
+      updateHUD(); updateInvUI();
+    } else {
+      addMsg('Out of '+si.name+'! Go collect more.');
+      nearest.state='browsing'; nearest.want=null;
+    }
+  } else {
+    addMsg('No customers waiting. Walk near a customer!');
+  }
+}
+
+function finishAct(id){
+  if(id==='sleep'){ energy=Math.min(100,energy+70); hp=Math.min(100,hp+20); addFloat2(W/2,H/2,'💤 Rested! +70⚡','#6ee7b7'); addMsg('You feel refreshed!'); sndEnter(); }
+  if(id==='cook'){ if(inv.bread>=2&&inv.veggie>=1){ inv.bread-=2;inv.veggie-=1;inv.cake++;addFloat2(W/2,H/2,'🎂 Cake made! +1','#ffd700');addMsg('Delicious cake!');updateInvUI();sndCoin();}else{addFloat2(W/2,H/2,'Need bread×2+veggie×1','#e94560');addMsg('Not enough ingredients!');} }
+  if(id==='eat'){ hunger=Math.min(100,hunger+50);hp=Math.min(100,hp+10);addFloat2(W/2,H/2,'😋 +50 Hunger!','#6ee7b7');addMsg('Yum! Feeling better.');sndEat(); }
+  if(id==='pc'){ coins+=20;addFloat2(W/2,H/2,'🎮 +20🪙 from streaming!','#ffd700');addMsg('Earned coins gaming!');updateHUD();sndCoin(); }
+  if(id==='bathe'){ hp=Math.min(100,hp+15);addFloat2(W/2,H/2,'🛁 Refreshed! +15❤️','#6ee7b7');addMsg('Squeaky clean!');sndBathe(); }
+}
+function addFloat2(x,y,text,color){ floats.push({x,y,text,color,life:80,maxLife:80}); }
+
+// ── SCENE TRANSITIONS ──
+function enterHouse(){
+  SCENE='interior'; player.x=W/2; player.y=H*0.72; hAct=null; hProg=0; actAnimT=0; localParticles=[];
+  document.getElementById('scene-lbl').textContent='HOUSE 🏠';
+  sndEnter();
+  addMsg('Home! Move to a room and [E] to use it. [ESC] to exit.');
+}
+function exitHouse(){
+  SCENE='town';
+  const hp2=BUILDINGS.find(b=>b.id==='houseplot');
+  player.x=hp2.x+hp2.w/2; player.y=hp2.y+hp2.h+30;
+  cam.x=Math.max(0,Math.min(MAP_W-W,player.x-W/2));
+  cam.y=Math.max(0,Math.min(MAP_H-H,player.y-H/2));
+  document.getElementById('scene-lbl').textContent='TOWN';
+  addMsg('Back in town!');
+}
+function enterShop(){
+  SCENE='shop'; shopEarnings=0;
+  player.x=W/2; player.y=H*0.6;
+  shopCustomers=[];
+  for(let i=0;i<5;i++) shopCustomers.push(makeShopCust(i));
+  document.getElementById('scene-lbl').textContent='MY SHOP 🏪';
+  sndEnter();
+  addMsg('Your shop! Walk near customers with [E] to sell. [ESC] to exit.');
+}
+function exitShop(){
+  SCENE='town';
+  const ms=BUILDINGS.find(b=>b.id==='myshop');
+  player.x=ms.x+ms.w/2; player.y=ms.y+ms.h+30;
+  cam.x=Math.max(0,Math.min(MAP_W-W,player.x-W/2));
+  cam.y=Math.max(0,Math.min(MAP_H-H,player.y-H/2));
+  document.getElementById('scene-lbl').textContent='TOWN';
+  addMsg('Back in town! Earned 🪙'+shopEarnings+' in shop!');
+}
+
+// ── PANELS ──
+function openPanel(id){
+  if(id==='hpanel') buildHousePanel();
+  document.getElementById(id).style.display='flex';
+}
+function closePanel(id){ document.getElementById(id).style.display='none'; }
+
+function buildHousePanel(){
+  const grid=document.getElementById('bpgrid');
+  grid.innerHTML='';
+  let done=0;
+  HOUSE_ITEMS.forEach(item=>{
+    if(item.done) done++;
+    const canBuild=!item.done&&Object.entries(item.cost).every(([k,v])=>(inv[k]||0)>=v);
+    const costStr=Object.entries(item.cost).map(([k,v])=>`${v}×${k}`).join(' ');
+    const el=document.createElement('div');
+    el.className='bp-card'+(item.done?' done':'');
+    el.innerHTML=`<div class="big">${item.ico}</div><div class="ttl">${item.name}</div><div class="cst">${item.done?'✅ Built':costStr}</div>${!item.done?`<button ${canBuild?'':'disabled'} onclick="buildItem('${item.id}')">BUILD</button>`:''}`;
+    grid.appendChild(el);
+  });
+  document.getElementById('hprog').textContent=`${done} / ${HOUSE_ITEMS.length} built`;
+  document.getElementById('hpp').textContent=Math.round(done/HOUSE_ITEMS.length*100)+'%';
+}
+
+function buildItem(id){
+  const item=HOUSE_ITEMS.find(h=>h.id===id);
+  if(!item||item.done) return;
+  if(!Object.entries(item.cost).every(([k,v])=>(inv[k]||0)>=v)){ addMsg('Not enough materials!'); return; }
+  Object.entries(item.cost).forEach(([k,v])=>inv[k]-=v);
+  item.done=true;
+  updateInvUI(); buildHousePanel();
+  addMsg('Built '+item.name+'! 🎉'); sndBuild();
+  for(let i=0;i<16;i++) particles.push({x:player.x+cam.x+(Math.random()-.5)*60,y:player.y+cam.y-20,vx:(Math.random()-.5)*6,vy:-Math.random()*6-2,color:['#ffd700','#22c55e','#e94560','#3498db'][Math.floor(Math.random()*4)],s:5+Math.random()*4,life:50,maxLife:50});
+}
+
+// ── HELPERS ──
+function addFloat(x,y,text,color='#ffd700'){ floats.push({x,y,text,color,life:70,maxLife:70}); }
+function addMsg(m){ document.getElementById('msg-bar').textContent=m; }
+function spawnCoin(x,y,val){ groundCoins.push({x,y,val,bobT:Math.random()*Math.PI*2,collected:false}); }
+function spawnP(x,y,c){ for(let i=0;i<10;i++) particles.push({x,y,vx:(Math.random()-.5)*4,vy:-Math.random()*4-1,color:c,s:3+Math.random()*3,life:35,maxLife:35}); }
+function updateHUD(){
+  document.getElementById('hh').textContent=hp;document.getElementById('he').textContent=energy;
+  document.getElementById('hc').textContent=coins;document.getElementById('hf').textContent=hunger;
+  document.getElementById('hd').textContent=day;
+  document.getElementById('hpp').textContent=Math.round(builtCount()/HOUSE_ITEMS.length*100)+'%';
+}
+function updateInvUI(){
+  ['bread','veggie','cake','lumber','tool','nail','brick','glass','wire','pipe'].forEach(k=>{
+    const el=document.getElementById('q-'+k); if(el) el.textContent=inv[k]||0;
+  });
+}
+function makeCust(b){
+  return {x:b.x+20+Math.random()*(b.w-40),y:b.y+b.h-10,color:NPC_COLS[Math.floor(Math.random()*NPC_COLS.length)],bid:b.id,coinVal:b.cv+Math.floor(Math.random()*4),state:'waiting',waitT:0,maxWait:220+Math.random()*120,animT:0,leaveT:0};
+}
+function spawnGI(b){
+  townGroundItems.push({x:b.x+20+Math.random()*(b.w-40),y:b.y+b.h+14+Math.random()*18,key:b.item,ico:b.sign,iname:b.iname,bid:b.id,bobT:Math.random()*Math.PI*2,collected:false,respawnIn:0});
+}
+
+// ── INPUT ──
+document.addEventListener('keydown',e=>{
+  keys[e.key]=true;
+  if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key)) e.preventDefault();
+  if(e.key==='e'||e.key==='E') interact();
+  if((e.key==='h'||e.key==='H')&&SCENE!=='menu'){
+    const p=document.getElementById('hpanel');
+    if(p.style.display==='flex') closePanel('hpanel'); else openPanel('hpanel');
+  }
+  if(e.key==='Escape'){
+    closePanel('hpanel');
+    if(SCENE==='pcscreen'){ SCENE='interior'; finishAct('pc'); addMsg('Closed PC.'); }
+    else if(SCENE==='interior'&&!hAct) exitHouse();
+    else if(SCENE==='interior'&&hAct){ hAct=null; hProg=0; actAnimT=0; addMsg('Cancelled.'); }
+    else if(SCENE==='shop') exitShop();
+  }
+});
+document.addEventListener('keyup',e=>keys[e.key]=false);
+canvas.addEventListener('contextmenu',e=>{
+  e.preventDefault();
+  if(SCENE==='pcscreen'){ SCENE='interior'; finishAct('pc'); addMsg('Closed PC. Coins earned!'); }
+});
+
+// ── INIT & LOOP ──
+function initGame(){
+  SCENE='town';
+  player.x=500; player.y=760; player.dir=2;
+  coins=0; hp=100; energy=100; hunger=100; day=1; gameTime=0;
+  Object.keys(inv).forEach(k=>inv[k]=0);
+  HOUSE_ITEMS.forEach(h=>h.done=false);
+  floats=[]; particles=[]; groundCoins=[]; shopCustomers=[]; shopEarnings=0;
+
+  townGroundItems=[];
+  BUILDINGS.filter(b=>b.type==='job').forEach(b=>{ for(let i=0;i<3;i++) spawnGI(b); });
+
+  buildingCustomers=[];
+  BUILDINGS.filter(b=>b.type==='job').forEach(b=>{ for(let i=0;i<2;i++) buildingCustomers.push(makeCust(b)); });
+
+  cam.x=Math.max(0,Math.min(MAP_W-W,player.x-W/2));
+  cam.y=Math.max(0,Math.min(MAP_H-H,player.y-H/2));
+
+  updateHUD(); updateInvUI();
+  document.getElementById('menu').style.display='none';
+  document.getElementById('scene-lbl').textContent='TOWN';
+  addMsg('Welcome! WASD move · E interact · H build · Enter shop to sell items');
+}
+
+function draw(){
+  ctx.clearRect(0,0,W,H);
+  if(SCENE==='town') drawTown();
+  else if(SCENE==='interior') drawInterior();
+  else if(SCENE==='pcscreen') drawPCScreen();
+  else if(SCENE==='shop') drawShopInterior();
+  else { R(0,0,W,H,'#0a0a12'); }
+}
+
+let loopGoing=false;
+function loop(){ update(); draw(); requestAnimationFrame(loop); }
+function startGame(){ initGame(); if(!loopGoing){ loopGoing=true; loop(); } }
+(function boot(){ draw(); if(SCENE==='menu') requestAnimationFrame(boot); })();
+</script>
+</body>
+</html>
