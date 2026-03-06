@@ -1222,6 +1222,23 @@
       </div>
     </div>
 
+    <div class="game-card" data-cat="simulation" onclick="playLifeSimulator()">
+      <div class="card-visual" style="background: linear-gradient(135deg,#1a2a1f,#0a1a0f);">
+        <div class="card-overlay"></div>
+        <span class="card-badge badge-popular">⭐ TRENDING</span>
+        <div class="card-icon" style="--c:#4ade80">🎮</div>
+      </div>
+      <div class="card-body">
+        <div class="card-title">PIXEL LIFE</div>
+        <div class="card-desc">Work jobs, collect resources, build your house, and live your own unique pixel life story!</div>
+        <div class="card-dev">👨‍💻 Aivan James</div>
+        <div class="card-footer">
+          <span class="card-players">👤 Solo</span>
+          <div class="card-difficulty"><div class="diff-dot active"></div><div class="diff-dot active"></div></div>
+        </div>
+      </div>
+    </div>
+
   </div>
 
   <!-- BOTTOM SECTION -->
@@ -1376,13 +1393,17 @@
   function playCowboy() {
     window.location.href = 'cowboy-horse-lava-monters.html';
   }
-
+    
   function playUrbanFantasy() {
-    window.location.href = 'urban-fantasy-game.html';
+    window.location.href = 'urban-fantasy-game.html';   
   }
 
   function playWrestling() {
     window.location.href = 'wrestling-showdown.html';
+  }
+
+  function playLifeSimulator() {
+    window.location.href = 'Life Simulation.html';
   }
 
   document.getElementById('modalPlayBtn').onclick = function() {
