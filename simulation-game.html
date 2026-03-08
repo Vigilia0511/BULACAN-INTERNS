@@ -62,8 +62,8 @@ html,body{width:100%;height:100%;background:#0a0a12;display:flex;flex-direction:
     <div class="hp">🏠<b id="hpp">0%</b></div>
     <div class="hp" style="gap:6px;">🕐<div id="time-bar-wrap"><div id="time-bar"></div></div></div>
     <div id="scene-lbl">TOWN</div>
-    <button id="btn-save" onclick="saveGame()" style="display:none;font-family:'Press Start 2P';font-size:5px;background:#22c55e;color:#000;border:none;padding:2px 6px;cursor:pointer;height:22px;white-space:nowrap;">💾 SAVE</button>
-    <button id="btn-load" onclick="loadGame()" style="display:none;font-family:'Press Start 2P';font-size:5px;background:#3b82f6;color:#fff;border:none;padding:2px 6px;cursor:pointer;height:22px;white-space:nowrap;">📂 LOAD</button>
+    <button id="btn-save" onclick="saveGame()" style="display:none;font-family:'Press Start 2P';font-size:clamp(5px,2.5vw,8px);background:#22c55e;color:#000;border:none;padding:0;cursor:pointer;width:clamp(32px,9vw,48px);height:clamp(22px,5.5vh,30px);min-width:32px;min-height:22px;white-space:nowrap;-webkit-tap-highlight-color:transparent;touch-action:manipulation;flex-shrink:0;border-radius:2px;line-height:1;">💾</button>
+<button id="btn-load" onclick="loadGame()" style="display:none;font-family:'Press Start 2P';font-size:clamp(5px,2.5vw,8px);background:#3b82f6;color:#fff;border:none;padding:0;cursor:pointer;width:clamp(32px,9vw,48px);height:clamp(22px,5.5vh,30px);min-width:32px;min-height:22px;white-space:nowrap;-webkit-tap-highlight-color:transparent;touch-action:manipulation;flex-shrink:0;border-radius:2px;line-height:1;">📂</button>
   </div>
   <div id="canvas-wrap">
     <canvas id="canvas"></canvas>
@@ -177,25 +177,24 @@ function openSaveModal(mode) {
   overlay.style.cssText = `position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.88);z-index:999;display:flex;align-items:center;justify-content:center;font-family:'Press Start 2P',monospace;`;
 
   const box = document.createElement('div');
-  box.style.cssText = `background:#0d1117;border:2px solid #ffd700;padding:20px;width:min(90vw,480px);max-height:80vh;overflow-y:auto;`;
-
+  box.style.cssText = `background:#0d1117;border:2px solid #ffd700;padding:clamp(12px,3vw,20px);width:min(92vw,480px);max-height:85vh;overflow-y:auto;-webkit-overflow-scrolling:touch;`;
   const title = document.createElement('div');
   title.textContent = mode === 'save' ? '💾 SAVE GAME' : '📂 LOAD GAME';
-  title.style.cssText = `color:#ffd700;font-size:10px;margin-bottom:16px;text-align:center;`;
+  title.style.cssText = `color:#ffd700;font-size:clamp(7px,2.5vw,11px);margin-bottom:clamp(10px,2vh,16px);text-align:center;`;
   box.appendChild(title);
 
   for (let i = 1; i <= MAX_SAVES; i++) {
     const slot = _saves[i];
     const row = document.createElement('div');
-    row.style.cssText = `display:flex;align-items:center;gap:8px;margin-bottom:10px;background:#1a2030;border:1px solid #2d3a4a;padding:8px;`;
+    row.style.cssText = `display:flex;align-items:center;flex-wrap:wrap;gap:clamp(4px,1.5vw,8px);margin-bottom:clamp(6px,1.5vh,10px);background:#1a2030;border:1px solid #2d3a4a;padding:clamp(6px,1.5vw,10px);`;
 
     const info = document.createElement('div');
     info.style.cssText = `flex:1;`;
     const slotLabel = document.createElement('div');
-    slotLabel.style.cssText = `color:#6ee7b7;font-size:6px;margin-bottom:4px;`;
+    slotLabel.style.cssText = `color:#6ee7b7;font-size:clamp(5px,1.8vw,7px);margin-bottom:4px;`;
     slotLabel.textContent = `SLOT ${i}`;
     const slotDetail = document.createElement('div');
-    slotDetail.style.cssText = `color:#9ca3af;font-size:5px;line-height:2;`;
+    slotDetail.style.cssText = `color:#9ca3af;font-size:clamp(4px,1.4vw,6px);line-height:2;word-break:break-word;`;
     slotDetail.textContent = slot
       ? `Day ${slot.day} · 🪙${slot.coins} · ${Math.round(slot.houseItems.filter(h=>h.done).length/10*100)}% built · ${slot.savedAt}`
       : '— Empty —';
@@ -206,7 +205,7 @@ function openSaveModal(mode) {
     if (mode === 'save') {
       const btn = document.createElement('button');
       btn.textContent = slot ? 'OVERWRITE' : 'SAVE HERE';
-      btn.style.cssText = `font-family:'Press Start 2P';font-size:5px;background:${slot?'#92400e':'#166534'};color:#fff;border:none;padding:6px 10px;cursor:pointer;white-space:nowrap;`;
+      btn.style.cssText = `font-family:'Press Start 2P';font-size:clamp(4px,1.4vw,6px);background:${slot?'#92400e':'#166534'};color:#fff;border:none;padding:clamp(5px,1.5vw,8px) clamp(6px,2vw,12px);cursor:pointer;white-space:nowrap;touch-action:manipulation;min-height:32px;`;
       btn.onclick = () => {
         _saves[i] = buildSaveData();
         persistSaves();
@@ -225,7 +224,7 @@ function openSaveModal(mode) {
       if (slot) {
         const btn = document.createElement('button');
         btn.textContent = 'LOAD';
-        btn.style.cssText = `font-family:'Press Start 2P';font-size:5px;background:#1e40af;color:#fff;border:none;padding:6px 10px;cursor:pointer;`;
+        btn.style.cssText = `font-family:'Press Start 2P';font-size:clamp(4px,1.4vw,6px);background:#1e40af;color:#fff;border:none;padding:clamp(5px,1.5vw,8px) clamp(6px,2vw,12px);cursor:pointer;touch-action:manipulation;min-height:32px;`;
         btn.onclick = () => {
           applyave(_saves[i]);
           addMsg(`✅ Loaded Slot ${i}! Day ${_saves[i].day}`);
@@ -240,7 +239,7 @@ function openSaveModal(mode) {
         row.appendChild(btn);
         const del = document.createElement('button');
         del.textContent = '🗑';
-        del.style.cssText = `font-family:'Press Start 2P';font-size:6px;background:#7f1d1d;color:#fff;border:none;padding:6px 8px;cursor:pointer;`;
+        del.style.cssText = `font-family:'Press Start 2P';font-size:clamp(5px,1.6vw,7px);background:#7f1d1d;color:#fff;border:none;padding:clamp(5px,1.5vw,8px) clamp(5px,1.8vw,10px);cursor:pointer;touch-action:manipulation;min-height:32px;`;
         del.onclick = () => { delete _saves[i]; persistSaves(); overlay.remove(); openSaveModal('load'); };
         row.appendChild(del);
       } else {
@@ -255,7 +254,7 @@ function openSaveModal(mode) {
 
   const close = document.createElement('button');
   close.textContent = 'CANCEL';
-  close.style.cssText = `font-family:'Press Start 2P';font-size:6px;background:#e94560;color:#fff;border:none;padding:8px 20px;cursor:pointer;margin-top:8px;display:block;margin-left:auto;margin-right:auto;`;
+  close.style.cssText = `font-family:'Press Start 2P';font-size:clamp(4px,1.4vw,6px);background:#e94560;color:#fff;border:none;padding:clamp(5px,1.5vw,8px) clamp(6px,2vw,12px);cursor:pointer;margin-top:clamp(5px,1.5vw,8px);display:block;margin-left:auto;margin-right:auto;`;
   close.onclick = () => overlay.remove();
   box.appendChild(close);
 
