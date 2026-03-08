@@ -48,8 +48,7 @@ html,body{width:100%;height:100%;background:#0a0a12;display:flex;flex-direction:
 @keyframes pulse{0%,100%{transform:scale(1);}50%{transform:scale(1.06);}}
 .dpad-btn{background:rgba(30,30,50,0.85);border:2px solid #ffd700;color:#ffd700;font-size:16px;border-radius:8px;width:44px;height:44px;display:flex;align-items:center;justify-content:center;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:none;}
 .dpad-btn:active{background:rgba(255,215,0,0.25);}
-.mact-btn{width:52px;height:52px;border:2px solid rgba(255,255,255,0.3);border-radius:50%;font-family:'Press Start 2P',monospace;font-size:10px;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:none;opacity:0.9;}
-.mact-btn:active{transform:scale(0.9);opacity:1;}
+.mact-btn{width:52px;height:52px;border:2px solid rgba(255,255,255,0.3);border-radius:50%;font-family:'Press Start 2P',monospace;font-size:10px;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:none;opacity:0.9;display:flex;align-items:center;justify-content:center;text-align:center;line-height:1;}
 </style>
 </head>
 <body>
@@ -104,7 +103,7 @@ html,body{width:100%;height:100%;background:#0a0a12;display:flex;flex-direction:
   <button class="mact-btn" id="btn-e" style="background:#ffd700;color:#000;">E</button>
   <button class="mact-btn" id="btn-h" style="background:#7c3aed;color:#fff;">H</button>
   <button class="mact-btn" id="btn-space" style="background:#e94560;color:#fff;">●</button>
-  <button class="mact-btn" id="btn-exit" style="background:#7f1d1d;color:#fff;display:none;font-size:8px;">EXIT</button>
+  <button class="mact-btn" id="btn-exit" style="background:#7f1d1d;color:#fff;display:none;font-size:8px;display:none;align-items:center;justify-content:center;text-align:center;line-height:1;">EXIT</button>
 </div>
 <div id="inv-bar">
     <div class="inv-lbl">BAG</div>
