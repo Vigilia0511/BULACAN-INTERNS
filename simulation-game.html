@@ -104,6 +104,7 @@ html,body{width:100%;height:100%;background:#0a0a12;display:flex;flex-direction:
   <button class="mact-btn" id="btn-e" style="background:#ffd700;color:#000;">E</button>
   <button class="mact-btn" id="btn-h" style="background:#7c3aed;color:#fff;">H</button>
   <button class="mact-btn" id="btn-space" style="background:#e94560;color:#fff;">●</button>
+  <button class="mact-btn" id="btn-exit" style="background:#7f1d1d;color:#fff;display:none;font-size:8px;">EXIT</button>
 </div>
 <div id="inv-bar">
     <div class="inv-lbl">BAG</div>
@@ -4658,6 +4659,13 @@ function initGame(){
 
 function draw(){
   ctx.clearRect(0,0,W,H);
+  if(isMobile()){
+    const exitBtn=document.getElementById('btn-exit');
+    if(exitBtn){
+      const needsExit=SCENE==='interior'||SCENE==='pcscreen'||SCENE==='shop'||SCENE==='tennis'||SCENE==='basketball'||SCENE==='baseball';
+      exitBtn.style.display=needsExit?'flex':'none';
+    }
+  }
    if(SCENE==='town') { drawTown(); drawWeather(ctx); drawSeasons(); }
   else if(SCENE==='interior') drawInterior();
   else if(SCENE==='pcscreen') drawPCScreen();
@@ -4725,6 +4733,19 @@ function setupMobileControls(){
       if(baseballState.phase==='pitch_incoming'&&!baseballState.swingActive&&baseballState.swingCD===0) doSwing();
       else baseballState.swingQueued=true;
     }
+  },{passive:false});
+
+  // EXIT button
+  document.getElementById('btn-exit').addEventListener('touchstart',e=>{
+    e.preventDefault();
+    closePanel('hpanel');
+    if(SCENE==='pcscreen'){ SCENE='interior';finishAct('pc');addMsg('Closed PC.'); }
+    else if(SCENE==='interior'&&!hAct) exitHouse();
+    else if(SCENE==='interior'&&hAct){ hAct=null;hProg=0;actAnimT=0;addMsg('Cancelled.'); }
+    else if(SCENE==='shop') exitShop();
+    else if(SCENE==='tennis') exitTennis();
+    else if(SCENE==='basketball') exitBball();
+    else if(SCENE==='baseball') exitBaseball();
   },{passive:false});
 
   // ESC via swipe-down on canvas
