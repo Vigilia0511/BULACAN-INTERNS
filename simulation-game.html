@@ -2,13 +2,15 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Pixel Life — Town Builder</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
-*{margin:0;padding:0;box-sizing:border-box;image-rendering:pixelated;}
-html,body{width:100%;height:100%;background:#0a0a12;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;font-family:'Press Start 2P',monospace;}
+*{margin:0;padding:0;box-sizing:border-box;image-rendering:pixelated;touch-action:none;}
+html,body{width:100%;height:100%;background:#0a0a12;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;font-family:'Press Start 2P',monospace;touch-action:none;-webkit-user-select:none;user-select:none;}
 #wrap{display:flex;flex-direction:column;width:100vw;height:100vh;}
-#hud{display:flex;align-items:center;gap:6px;background:#0d1117;border-bottom:2px solid #ffd700;padding:4px 10px;flex-shrink:0;height:32px;}
+#hud{display:flex;align-items:center;gap:6px;background:#0d1117;border-bottom:2px solid #ffd700;padding:4px 10px;flex-shrink:0;height:32px;overflow-x:auto;overflow-y:hidden;}
+#hud::-webkit-scrollbar{display:none;}
 .hp{background:#1f2937;border:1px solid #374151;padding:2px 6px;font-size:7px;color:#d1d5db;display:flex;align-items:center;gap:4px;white-space:nowrap;}
 .hp b{color:#ffd700;}
 #scene-lbl{margin-left:auto;font-size:6px;color:#6ee7b7;border:1px solid #6ee7b7;padding:2px 6px;}
@@ -16,7 +18,8 @@ html,body{width:100%;height:100%;background:#0a0a12;display:flex;flex-direction:
 #time-bar{height:100%;width:0%;background:#ffd700;transition:none;}
 #canvas-wrap{flex:1;position:relative;overflow:hidden;}
 #canvas{display:block;cursor:none;}
-#inv-bar{display:flex;align-items:center;gap:3px;padding:3px 8px;background:#0d1117;border-top:2px solid #ffd700;flex-shrink:0;height:58px;}
+#inv-bar{display:flex;align-items:center;gap:3px;padding:3px 8px;background:#0d1117;border-top:2px solid #ffd700;flex-shrink:0;height:58px;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;}
+#inv-bar::-webkit-scrollbar{display:none;}
 .inv-lbl{font-size:5px;color:#6b7280;writing-mode:vertical-rl;transform:rotate(180deg);height:48px;display:flex;align-items:center;margin-right:2px;}
 .inv-slot{width:46px;height:48px;background:#1a2030;border:1px solid #2d3a4a;position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;cursor:pointer;}
 .inv-slot:hover,.inv-slot.hot{border-color:#ffd700;box-shadow:inset 0 0 4px #ffd70033;}
@@ -164,9 +167,24 @@ function resizeCanvas(){
   const wrap = document.getElementById('canvas-wrap');
   W = wrap.clientWidth; H = wrap.clientHeight;
   canvas.width = W; canvas.height = H;
+  // Reposition mobile controls based on new size
+  const dpad = document.getElementById('dpad');
+  const mbtns = document.getElementById('mbtns');
+  if(dpad) dpad.style.bottom = '80px';
+  if(mbtns) mbtns.style.bottom = '80px';
 }
 resizeCanvas();
-window.addEventListener('resize', ()=>{ resizeCanvas(); cam.x=Math.max(0,Math.min(MAP_W-W,player.x-W/2)); cam.y=Math.max(0,Math.min(MAP_H-H,player.y-H/2)); });
+window.addEventListener('resize', ()=>{
+  resizeCanvas();
+  cam.x=Math.max(0,Math.min(MAP_W-W,player.x-W/2));
+  cam.y=Math.max(0,Math.min(MAP_H-H,player.y-H/2));
+});
+// Prevent all default touch behaviours (double-tap zoom, scroll, etc.)
+document.addEventListener('touchstart', e=>{ if(e.touches.length>1) e.preventDefault(); }, {passive:false});
+document.addEventListener('touchmove',  e=>e.preventDefault(), {passive:false});
+document.addEventListener('gesturestart', e=>e.preventDefault(), {passive:false});
+document.addEventListener('gesturechange', e=>e.preventDefault(), {passive:false});
+document.addEventListener('dblclick', e=>e.preventDefault());
 
 // ── STATE ──
 let SCENE = 'menu';
@@ -2280,7 +2298,7 @@ function updateBball(){
     if(bs.shotMeterPower<=0){bs.shotMeterPower=0;bs.shotMeterDir=1;}
   }
 
-  const spd=2.6;
+  const spd=isMobile()?3.2:2.6;
   let mx=0,my=0;
   if(!bs.shooting){
     if(keys['ArrowLeft']||keys['a']||keys['A']){mx=-spd;bs.playerDir=2;}
