@@ -99,7 +99,7 @@ html,body{width:100%;height:100%;background:#0a0a12;display:flex;flex-direction:
   </div>
 </div>
 <!-- Mobile Action Buttons -->
-<div id="mbtns" style="display:none;position:fixed;bottom:80px;right:12px;z-index:50;user-select:none;display:flex;flex-direction:column;gap:6px;align-items:flex-end;">
+<div id="mbtns" style="display:none;position:fixed;bottom:80px;right:12px;z-index:50;user-select:none;flex-direction:column;gap:6px;align-items:flex-end;">
   <button class="mact-btn" id="btn-e" style="background:#ffd700;color:#000;">E</button>
   <button class="mact-btn" id="btn-h" style="background:#7c3aed;color:#fff;">H</button>
   <button class="mact-btn" id="btn-space" style="background:#e94560;color:#fff;">●</button>
@@ -4666,6 +4666,13 @@ function draw(){
       exitBtn.style.display=needsExit?'flex':'none';
       const sbBtn=document.getElementById('btn-sb');
       if(sbBtn) sbBtn.style.display=SCENE==='basketball'&&!bballState.result?'flex':'none';
+      // show/hide E, H, space buttons based on scene
+      const eBtn=document.getElementById('btn-e');
+      const hBtn=document.getElementById('btn-h');
+      const spBtn=document.getElementById('btn-space');
+      if(eBtn) eBtn.style.display=(SCENE==='basketball')?'none':'flex';
+      if(hBtn) hBtn.style.display=(SCENE==='town')?'flex':'none';
+      if(spBtn) spBtn.style.display=(SCENE==='tennis'||SCENE==='baseball')?'flex':'none';
     }
   }
    if(SCENE==='town') { drawTown(); drawWeather(ctx); drawSeasons(); }
@@ -4684,10 +4691,11 @@ function isMobile(){ return ('ontouchstart' in window) || navigator.maxTouchPoin
 function setupMobileControls(){
   if(!isMobile()) return;
   document.getElementById('dpad').style.display='block';
-  // show mbtns — override the inline display:none/flex conflict
   const mb = document.getElementById('mbtns');
   mb.style.display='flex';
-
+  mb.style.flexDirection='column';
+  mb.style.gap='6px';
+  mb.style.alignItems='flex-end';
   function holdKey(k){ return { start(){ keys[k]=true; }, stop(){ keys[k]=false; } }; }
   const map = {
     'btn-up':    holdKey('ArrowUp'),
