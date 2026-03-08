@@ -56,12 +56,14 @@ html,body{width:100%;height:100%;background:#0a0a12;display:flex;flex-direction:
   <div id="hud">
     <div class="hp">❤️<b id="hh">100</b></div>
     <div class="hp">⚡<b id="he">100</b></div>
-    <div class="hp">🪙<b id="hc">0</b></div>
+    <div class="hp">⬜<b id="hc">0</b></div>
     <div class="hp">🍔<b id="hf">100</b></div>
     <div class="hp">📅Day<b id="hd">1</b></div>
     <div class="hp">🏠<b id="hpp">0%</b></div>
     <div class="hp" style="gap:6px;">🕐<div id="time-bar-wrap"><div id="time-bar"></div></div></div>
     <div id="scene-lbl">TOWN</div>
+    <button id="btn-save" onclick="saveGame()" style="display:none;font-family:'Press Start 2P';font-size:5px;background:#22c55e;color:#000;border:none;padding:2px 6px;cursor:pointer;height:22px;white-space:nowrap;">💾 SAVE</button>
+    <button id="btn-load" onclick="loadGame()" style="display:none;font-family:'Press Start 2P';font-size:5px;background:#3b82f6;color:#fff;border:none;padding:2px 6px;cursor:pointer;height:22px;white-space:nowrap;">📂 LOAD</button>
   </div>
   <div id="canvas-wrap">
     <canvas id="canvas"></canvas>
@@ -79,9 +81,8 @@ html,body{width:100%;height:100%;background:#0a0a12;display:flex;flex-direction:
         H — Build House &nbsp;|&nbsp; ESC — Exit building<br>
         🎾 Tennis Court &amp; 🏀 Basketball Court — Playable!
       </div>
-      <button id="sbtn" onclick="startGame()">▶ START</button>
-      <button onclick="saveGame()" style="font-family:'Press Start 2P';font-size:7px;background:#22c55e;color:#000;border:none;padding:8px 18px;cursor:pointer;">💾 SAVE</button>
-<button onclick="loadGame()" style="font-family:'Press Start 2P';font-size:7px;background:#3b82f6;color:#fff;border:none;padding:8px 18px;cursor:pointer;">📂 LOAD</button>
+      <button id="sbtn" onclick="startGame()">▶ NEW GAME</button>
+      <button onclick="openSaveModal('load')" style="font-family:'Press Start 2P';font-size:7px;background:#3b82f6;color:#fff;border:none;padding:10px 24px;cursor:pointer;">📂 LOAD SAVE</button>
     </div>
   </div>
   <!-- Mobile D-Pad -->
@@ -126,41 +127,154 @@ html,body{width:100%;height:100%;background:#0a0a12;display:flex;flex-direction:
 </div>
 
 <script>
-  function saveGame() {
-  const saveData = {
+const MAX_SAVES = 5;
+let _saves = {};
+
+function getSaves() {
+  try { const raw = localStorage.getItem('pixelLifeSaves'); if (raw) _saves = JSON.parse(raw); } catch(e) {}
+  return _saves;
+}
+
+function persistSaves() {
+  try { localStorage.setItem('pixelLifeSaves', JSON.stringify(_saves)); } catch(e) {}
+}
+
+function buildSaveData() {
+  return {
     coins, hp, energy, hunger, day, gameTime,
     inv: {...inv},
     houseItems: HOUSE_ITEMS.map(h => ({ id: h.id, done: h.done })),
     player: { x: player.x, y: player.y },
     season: SEASONS.current,
     weather: WEATHER.current,
+    savedAt: new Date().toLocaleString(),
   };
-  localStorage.setItem('pixelLifeSave', JSON.stringify(saveData));
-  addMsg('💾 Game Saved!');
 }
 
-function loadGame() {
-  const raw = localStorage.getItem('pixelLifeSave');
-  if (!raw) { addMsg('No save found!'); return; }
-  const data = JSON.parse(raw);
-  coins = data.coins;
-  hp = data.hp;
-  energy = data.energy;
-  hunger = data.hunger;
-  day = data.day;
-  gameTime = data.gameTime;
+function applysave(data) {
+  coins = data.coins; hp = data.hp; energy = data.energy;
+  hunger = data.hunger; day = data.day; gameTime = data.gameTime;
   Object.assign(inv, data.inv);
   data.houseItems.forEach(saved => {
     const item = HOUSE_ITEMS.find(h => h.id === saved.id);
     if (item) item.done = saved.done;
   });
-  player.x = data.player.x;
-  player.y = data.player.y;
-  SEASONS.current = data.season;
-  WEATHER.current = data.weather;
-  updateHUD();
-  updateInvUI();
-  addMsg('✅ Game Loaded!');
+  player.x = data.player.x; player.y = data.player.y;
+  SEASONS.current = data.season; WEATHER.current = data.weather;
+  updateHUD(); updateInvUI();
+}
+
+function saveGame() { openSaveModal('save'); }
+function loadGame() { openSaveModal('load'); }
+
+function openSaveModal(mode) {
+  getSaves();
+  const existing = document.getElementById('save-modal');
+  if (existing) existing.remove();
+
+  const overlay = document.createElement('div');
+  overlay.id = 'save-modal';
+  overlay.style.cssText = `position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.88);z-index:999;display:flex;align-items:center;justify-content:center;font-family:'Press Start 2P',monospace;`;
+
+  const box = document.createElement('div');
+  box.style.cssText = `background:#0d1117;border:2px solid #ffd700;padding:20px;width:min(90vw,480px);max-height:80vh;overflow-y:auto;`;
+
+  const title = document.createElement('div');
+  title.textContent = mode === 'save' ? '💾 SAVE GAME' : '📂 LOAD GAME';
+  title.style.cssText = `color:#ffd700;font-size:10px;margin-bottom:16px;text-align:center;`;
+  box.appendChild(title);
+
+  for (let i = 1; i <= MAX_SAVES; i++) {
+    const slot = _saves[i];
+    const row = document.createElement('div');
+    row.style.cssText = `display:flex;align-items:center;gap:8px;margin-bottom:10px;background:#1a2030;border:1px solid #2d3a4a;padding:8px;`;
+
+    const info = document.createElement('div');
+    info.style.cssText = `flex:1;`;
+    const slotLabel = document.createElement('div');
+    slotLabel.style.cssText = `color:#6ee7b7;font-size:6px;margin-bottom:4px;`;
+    slotLabel.textContent = `SLOT ${i}`;
+    const slotDetail = document.createElement('div');
+    slotDetail.style.cssText = `color:#9ca3af;font-size:5px;line-height:2;`;
+    slotDetail.textContent = slot
+      ? `Day ${slot.day} · 🪙${slot.coins} · ${Math.round(slot.houseItems.filter(h=>h.done).length/10*100)}% built · ${slot.savedAt}`
+      : '— Empty —';
+    info.appendChild(slotLabel);
+    info.appendChild(slotDetail);
+    row.appendChild(info);
+
+    if (mode === 'save') {
+      const btn = document.createElement('button');
+      btn.textContent = slot ? 'OVERWRITE' : 'SAVE HERE';
+      btn.style.cssText = `font-family:'Press Start 2P';font-size:5px;background:${slot?'#92400e':'#166534'};color:#fff;border:none;padding:6px 10px;cursor:pointer;white-space:nowrap;`;
+      btn.onclick = () => {
+        _saves[i] = buildSaveData();
+        persistSaves();
+        addMsg(`💾 Saved to Slot ${i}!`);
+        overlay.remove();
+      };
+      row.appendChild(btn);
+      if (slot) {
+        const del = document.createElement('button');
+        del.textContent = '🗑';
+        del.style.cssText = `font-family:'Press Start 2P';font-size:6px;background:#7f1d1d;color:#fff;border:none;padding:6px 8px;cursor:pointer;`;
+        del.onclick = () => { delete _saves[i]; persistSaves(); overlay.remove(); openSaveModal('save'); };
+        row.appendChild(del);
+      }
+    } else {
+      if (slot) {
+        const btn = document.createElement('button');
+        btn.textContent = 'LOAD';
+        btn.style.cssText = `font-family:'Press Start 2P';font-size:5px;background:#1e40af;color:#fff;border:none;padding:6px 10px;cursor:pointer;`;
+        btn.onclick = () => {
+          applyave(_saves[i]);
+          addMsg(`✅ Loaded Slot ${i}! Day ${_saves[i].day}`);
+          overlay.remove();
+          if (SCENE === 'menu') {
+            initGame();
+            applyave(_saves[i]);
+            if (!loopGoing) { loopGoing = true; loop(); }
+            setupMobileControls();
+          }
+        };
+        row.appendChild(btn);
+        const del = document.createElement('button');
+        del.textContent = '🗑';
+        del.style.cssText = `font-family:'Press Start 2P';font-size:6px;background:#7f1d1d;color:#fff;border:none;padding:6px 8px;cursor:pointer;`;
+        del.onclick = () => { delete _saves[i]; persistSaves(); overlay.remove(); openSaveModal('load'); };
+        row.appendChild(del);
+      } else {
+        const empty = document.createElement('div');
+        empty.style.cssText = `color:#374151;font-size:5px;padding:6px 10px;`;
+        empty.textContent = 'EMPTY';
+        row.appendChild(empty);
+      }
+    }
+    box.appendChild(row);
+  }
+
+  const close = document.createElement('button');
+  close.textContent = 'CANCEL';
+  close.style.cssText = `font-family:'Press Start 2P';font-size:6px;background:#e94560;color:#fff;border:none;padding:8px 20px;cursor:pointer;margin-top:8px;display:block;margin-left:auto;margin-right:auto;`;
+  close.onclick = () => overlay.remove();
+  box.appendChild(close);
+
+  overlay.appendChild(box);
+  overlay.addEventListener('mousedown', e => { if (e.target === overlay) overlay.remove(); });
+  document.body.appendChild(overlay);
+}
+
+function applyave(data) {
+  coins = data.coins; hp = data.hp; energy = data.energy;
+  hunger = data.hunger; day = data.day; gameTime = data.gameTime;
+  Object.assign(inv, data.inv);
+  data.houseItems.forEach(saved => {
+    const item = HOUSE_ITEMS.find(h => h.id === saved.id);
+    if (item) item.done = saved.done;
+  });
+  player.x = data.player.x; player.y = data.player.y;
+  SEASONS.current = data.season; WEATHER.current = data.weather;
+  updateHUD(); updateInvUI();
 }
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
@@ -511,7 +625,7 @@ const HOUSE_ITEMS=[
   {id:'walls',     name:'Walls',     ico:'🏗️',cost:{brick:8,lumber:4,nail:6},done:false},
   {id:'roof',      name:'Roof',      ico:'🏠',cost:{lumber:6,nail:4},  done:false},
   {id:'door',      name:'Door',      ico:'🚪',cost:{lumber:3,tool:1},  done:false},
-  {id:'windows',   name:'Windows',   ico:'🪟',cost:{glass:4,lumber:2,nail:2},done:false},
+  {id:'windows',   name:'Windows',   ico:'⬜',cost:{glass:4,lumber:2,nail:2},done:false},
   {id:'kitchen',   name:'Kitchen',   ico:'🍳',cost:{brick:4,pipe:2},   done:false},
   {id:'bedroom',   name:'Bedroom',   ico:'🛏️',cost:{lumber:5,tool:2},  done:false},
   {id:'bathroom',  name:'Bathroom',  ico:'🚿',cost:{pipe:4,brick:3},   done:false},
@@ -4528,6 +4642,7 @@ document.addEventListener('keydown',e=>{
     else if(SCENE==='tennis') exitTennis();
     else if(SCENE==='basketball') exitBball();
     else if(SCENE==='baseball') exitBaseball();
+    else if(SCENE==='town'){ goToMenu(); }
   }
 });
 document.addEventListener('keyup',e=>{
@@ -4645,6 +4760,8 @@ function initGame(){
   cam.x=Math.max(0,Math.min(MAP_W-W,player.x-W/2));cam.y=Math.max(0,Math.min(MAP_H-H,player.y-H/2));
   updateHUD();updateInvUI();
   document.getElementById('menu').style.display='none';
+  document.getElementById('btn-save').style.display='block';
+  document.getElementById('btn-load').style.display='block';
   document.getElementById('scene-lbl').textContent='TOWN';
 
   // Spawn 18 wandering town NPCs
@@ -4826,6 +4943,13 @@ let touchStartY=0;
 
 let loopGoing=false;
 function loop(){ update();draw();requestAnimationFrame(loop); }
+function goToMenu(){
+  SCENE='menu';
+  stopBgMusic();
+  document.getElementById('menu').style.display='flex';
+  document.getElementById('btn-save').style.display='none';
+  document.getElementById('btn-load').style.display='none';
+}
 function startGame(){ initGame();if(!loopGoing){loopGoing=true;loop();} setupMobileControls(); }
 (function boot(){ draw();if(SCENE==='menu') requestAnimationFrame(boot); })();
 </script>
