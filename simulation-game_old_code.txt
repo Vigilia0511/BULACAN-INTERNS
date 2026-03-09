@@ -85,9 +85,19 @@ html,body{width:100%;height:100%;background:#0a0a12;display:flex;flex-direction:
       <button onclick="openSaveModal('load')" style="font-family:'Press Start 2P';font-size:7px;background:#3b82f6;color:#fff;border:none;padding:10px 24px;cursor:pointer;">📂 LOAD SAVE</button>
     </div>
   </div>
-<!-- Mobile Joystick -->
-<div id="dpad" style="display:none;position:fixed;bottom:88px;left:18px;z-index:50;user-select:none;touch-action:none;">
-  <canvas id="joystick-canvas" width="130" height="130" style="display:block;touch-action:none;"></canvas>
+  <!-- Mobile D-Pad -->
+<div id="dpad" style="display:none;position:fixed;bottom:80px;left:12px;z-index:50;user-select:none;">
+  <div style="display:grid;grid-template-columns:44px 44px 44px;grid-template-rows:44px 44px 44px;gap:3px;">
+    <div></div>
+    <button class="dpad-btn" id="btn-up">▲</button>
+    <div></div>
+    <button class="dpad-btn" id="btn-left">◀</button>
+    <div style="background:rgba(255,255,255,0.05);border-radius:6px;"></div>
+    <button class="dpad-btn" id="btn-right">▶</button>
+    <div></div>
+    <button class="dpad-btn" id="btn-down">▼</button>
+    <div></div>
+  </div>
 </div>
 <!-- Mobile Action Buttons -->
 <div id="mbtns" style="display:none;position:fixed;bottom:80px;right:12px;z-index:50;user-select:none;flex-direction:column;gap:6px;align-items:flex-end;">
@@ -96,7 +106,6 @@ html,body{width:100%;height:100%;background:#0a0a12;display:flex;flex-direction:
   <button class="mact-btn" id="btn-space" style="background:#e94560;color:#fff;display:none;">●</button>
   <button class="mact-btn" id="btn-exit" style="background:#7f1d1d;color:#fff;display:none;font-size:8px;align-items:center;justify-content:center;text-align:center;line-height:1;">EXIT</button>
 <button class="mact-btn" id="btn-quit" style="background:#1a1a2e;color:#e94560;border:2px solid #e94560;display:none;font-family:'Press Start 2P',monospace;font-size:7px;align-items:center;justify-content:center;text-align:center;line-height:1.2;">🏠<br>MENU</button>
-<button class="mact-btn" id="btn-mission" style="background:#1a1a2e;color:#fde047;border:2px solid #fde047;display:none;font-family:'Press Start 2P',monospace;font-size:7px;align-items:center;justify-content:center;text-align:center;line-height:1.2;">📋<br>M</button>
   <button class="mact-btn" id="btn-sb" style="background:#065f46;color:#fff;display:none;font-size:6px;align-items:center;justify-content:center;text-align:center;line-height:1.3;">STL/<br>BLK</button>
   <button class="mact-btn" id="btn-shoot" style="background:#1d4ed8;color:#fff;display:none;font-size:6px;align-items:center;justify-content:center;text-align:center;line-height:1;">🏀<br>SHOOT</button>
 </div>
@@ -113,9 +122,8 @@ html,body{width:100%;height:100%;background:#0a0a12;display:flex;flex-direction:
     <div class="inv-slot"><div class="sico">⬜</div><div class="snm">Glass</div><div class="sqt" id="q-glass">0</div></div>
     <div class="inv-slot"><div class="sico">🔌</div><div class="snm">Wiring</div><div class="sqt" id="q-wire">0</div></div>
     <div class="inv-slot"><div class="sico">🚿</div><div class="snm">Pipes</div><div class="sqt" id="q-pipe">0</div></div>
-    <div class="inv-slot"><div class="sico">🐟</div><div class="snm">Fish</div><div class="sqt" id="q-fish">0</div></div>
     <div class="inv-div"></div>
-    <div id="msg-bar">Walk around · [E] Interact · [H] Build · [M] Missions</div>
+    <div id="msg-bar">Walk around · [E] Interact · [H] Build · [B] Shop</div>
   </div>
 </div>
 
@@ -304,336 +312,7 @@ let interactCD=0;
 const keys={};
 let cam={x:0,y:0};
 const MAP_W=2200, MAP_H=1300;
-const inv={bread:0,veggie:0,cake:0,lumber:0,tool:0,nail:0,brick:0,glass:0,wire:0,pipe:0,fish:0};
-
-// ── MISSIONS ──
-const MISSION_DEFS = [
-  { id:'m1',  title:'First Steps',       desc:'Collect 3 items from any job building.',         type:'collect',  target:3,   reward:{coins:20},              icon:'👣' },
-  { id:'m2',  title:'Breadwinner',       desc:'Collect 5 Bread from the Bakery.',               type:'inv',      key:'bread',target:5,   reward:{coins:30},  icon:'🍞' },
-  { id:'m3',  title:'Handyman',          desc:'Collect 5 Tools from the Hardware store.',       type:'inv',      key:'tool', target:5,   reward:{coins:35},  icon:'🔧' },
-  { id:'m4',  title:'Open for Business', desc:'Sell 3 items in your shop.',                     type:'sell',     target:3,   reward:{coins:50},              icon:'🏪' },
-  { id:'m5',  title:'Merchant',          desc:'Earn 100 coins total.',                          type:'coins',    target:100, reward:{coins:40},              icon:'💰' },
-  { id:'m6',  title:'Home Builder',      desc:'Build 3 parts of your house.',                   type:'build',    target:3,   reward:{coins:60},              icon:'🏗️' },
-  { id:'m7',  title:'Tennis Rookie',     desc:'Play a tennis match.',                           type:'scene',    key:'tennis',target:1,  reward:{coins:25}, icon:'🎾' },
-  { id:'m8',  title:'Baller',            desc:'Play a basketball game.',                        type:'scene',    key:'basketball',target:1,reward:{coins:25},icon:'🏀' },
-  { id:'m9',  title:'Full House',        desc:'Build all 10 parts of your house.',              type:'build',    target:10,  reward:{coins:200},             icon:'🏠' },
-  { id:'m10', title:'Sleep Tight',       desc:'Sleep in your bedroom.',                         type:'act',      key:'sleep',target:1,   reward:{coins:20}, icon:'💤' },
-  { id:'m11', title:'Master Chef',       desc:'Cook a cake.',                                   type:'act',      key:'cook', target:1,   reward:{coins:30}, icon:'🎂' },
-  { id:'m12', title:'Tycoon',            desc:'Earn 500 coins total.',                          type:'coins',    target:500, reward:{coins:100},             icon:'💰' },
-  { id:'m13', title:'Lumberjack',        desc:'Collect 8 Lumber from the Woodshop.',            type:'inv',      key:'lumber',target:8,  reward:{coins:40}, icon:'🌲' },
-  { id:'m14', title:'Bricklayer',        desc:'Collect 8 Bricks from the Brickyard.',           type:'inv',      key:'brick',target:8,   reward:{coins:40}, icon:'🧱' },
-  { id:'m15', title:'Grand Slam',        desc:'Win a tennis match.',                            type:'win',      key:'tennis',target:1,  reward:{coins:80}, icon:'🏆' },
-  { id:'m16', title:'Slam Dunk',         desc:'Score 10 points in basketball.',                 type:'bball',    target:10,  reward:{coins:80},              icon:'🏅' },
-  { id:'m17', title:'Big Sell Day',      desc:'Sell 10 items in your shop.',                    type:'sell',     target:10,  reward:{coins:120},             icon:'📦' },
-  { id:'m18', title:'Home Sweet Home',   desc:'Use all 5 rooms in your house.',                 type:'rooms',    target:5,   reward:{coins:150},             icon:'🛋️' },
-  { id:'m19', title:'Surfer',            desc:'Play baseball.',                                 type:'scene',    key:'baseball',target:1, reward:{coins:25},icon:'⚾' },
-  { id:'m20', title:'Night Owl',         desc:'Survive 5 in-game days.',                        type:'days',     target:5,   reward:{coins:75},              icon:'🦉' },
-];
-
-let missions = [];
-let missionLog = { collect:0, sell:0, coinsEarned:0, built:0, scenes:{}, acts:{}, rooms:new Set(), bballScore:0, wins:{} };
-let missionPanelOpen = false;
-let missionToast = null;
-
-function initMissions() {
-  missions = MISSION_DEFS.map(def => ({ ...def, progress:0, done:false, claimed:false }));
-  missionLog = { collect:0, sell:0, coinsEarned:0, built:0, scenes:{}, acts:{}, rooms:new Set(), bballScore:0, wins:{} };
-}
-
-function tickMission(type, key, amount=1) {
-  missions.forEach(m => {
-    if(m.done) return;
-    let prog = false;
-    if(m.type===type) {
-      if(m.key && m.key!==key) return;
-      m.progress = Math.min(m.target, (m.progress||0) + amount);
-      if(m.progress >= m.target) { m.done=true; prog=true; showMissionToast(m); }
-    }
-  });
-}
-
-function checkMissions() {
-  missions.forEach(m => {
-    if(m.done) return;
-    let val = 0;
-    if(m.type==='collect')    val = missionLog.collect;
-    else if(m.type==='sell')  val = missionLog.sell;
-    else if(m.type==='coins') val = missionLog.coinsEarned;
-    else if(m.type==='build') val = missionLog.built;
-    else if(m.type==='days')  val = day;
-    else if(m.type==='bball') val = missionLog.bballScore;
-    else if(m.type==='scene') val = missionLog.scenes[m.key]||0;
-    else if(m.type==='act')   val = missionLog.acts[m.key]||0;
-    else if(m.type==='rooms') val = missionLog.rooms.size;
-    else if(m.type==='win')   val = missionLog.wins[m.key]||0;
-    else if(m.type==='inv')   val = inv[m.key]||0;
-    else return;
-    m.progress = Math.min(m.target, val);
-    if(m.progress >= m.target && !m.done) { m.done=true; showMissionToast(m); }
-  });
-}
-
-function claimMission(id) {
-  const m = missions.find(x=>x.id===id);
-  if(!m||!m.done||m.claimed) return;
-  m.claimed=true;
-  if(m.reward.coins) { coins+=m.reward.coins; addMsg('🎉 Mission claimed: +🪙'+m.reward.coins); updateHUD(); sndCoin(); }
-}
-
-function showMissionToast(m) {
-  missionToast = { m, t: 200 };
-  addMsg('✅ Mission complete: '+m.title+'! Press [M] to claim reward.');
-}
-
-function drawMissionToast() {
-  if(!missionToast) return;
-  missionToast.t--;
-  if(missionToast.t<=0){ missionToast=null; return; }
-  const fade = Math.min(1, missionToast.t/20);
-  const m = missionToast.m;
-  const tw = 260, th = 48, tx = W/2-tw/2, ty = 60;
-  ctx.globalAlpha=fade;
-  R(tx,ty,tw,th,'rgba(0,0,0,0.95)');
-  O(tx,ty,tw,th,'#22c55e',2);
-  ctx.font='16px serif'; ctx.fillText(m.icon, ~~(tx+10), ~~(ty+30));
-  T('MISSION COMPLETE!', tx+34, ty+14, '#22c55e', 5);
-  T(m.title, tx+34, ty+30, '#fde047', 6);
-  T('🪙+'+m.reward.coins+' [M] to claim', tx+34, ty+43, '#86efac', 4);
-  ctx.globalAlpha=1;
-}
-
-let missionHover = null;
-let missionScroll = 0;
-let tutorialToast = null;
-
-function drawMissionPanel() {
-  if(!missionPanelOpen) return;
-  const pw=Math.min(W*0.88,520), ph=Math.min(H*0.85,520);
-  const px=(W-pw)/2, py=(H-ph)/2;
-  const rowH = 52;
-  const visRows = Math.floor((ph-56)/rowH);
-  const maxScroll = Math.max(0, missions.length - visRows);
-  missionScroll = Math.max(0, Math.min(maxScroll, missionScroll));
-
-  R(px,py,pw,ph,'rgba(5,10,24,0.98)');
-  O(px,py,pw,ph,'#ffd700',2);
-
-  // Title
-  ctx.font='9px "Press Start 2P"';
-  ctx.fillStyle='#ffd700';
-  ctx.fillText('📋 MISSIONS', ~~(px+16), ~~(py+20));
-  const done=missions.filter(m=>m.done&&m.claimed).length;
-  ctx.font='5px "Press Start 2P"';
-  ctx.fillStyle='#6b7280';
-  ctx.fillText(done+'/'+missions.length+' claimed', ~~(px+pw-88), ~~(py+20));
-  ctx.font='5px "Press Start 2P"';
-  ctx.fillStyle='#374151';
-  ctx.fillText('right-click or [M] to close', ~~(px+pw/2-60), ~~(py+ph-8));
-
-  // Scroll arrows
-  if(missionScroll>0){
-    ctx.fillStyle='#ffd700'; ctx.font='10px serif';
-    ctx.fillText('▲', ~~(px+pw/2-5), ~~(py+32));
-  }
-  if(missionScroll<maxScroll){
-    ctx.fillStyle='#ffd700'; ctx.font='10px serif';
-    ctx.fillText('▼', ~~(px+pw/2-5), ~~(py+ph-26));
-  }
-
-  ctx.save();
-  ctx.beginPath(); ctx.rect(px+4, py+28, pw-8, ph-52); ctx.clip();
-
-  const visible = missions.slice(missionScroll, missionScroll+visRows+1);
-  visible.forEach((m, i) => {
-    const ry = py+30 + i*rowH;
-    if(ry+rowH > py+ph-24) return;
-
-    const isHovered = missionHover === m.id;
-    const scale = isHovered ? 1.04 : 1;
-    const expandH = isHovered ? rowH+12 : rowH;
-
-    const bg = m.claimed?'#071a10': m.done?'#0f2a00': isHovered?'#111827':'#0d1117';
-    const border = m.claimed?'#22c55e': m.done?'#86efac': isHovered?'#3b82f6':'#1f2937';
-
-    // Hover glow
-    if(isHovered){
-      ctx.shadowColor = m.done&&!m.claimed ? '#22c55e' : '#3b82f6';
-      ctx.shadowBlur = 12;
-    }
-
-    R(px+6, ry, pw-12, expandH-2, bg);
-    O(px+6, ry, pw-12, expandH-2, border, isHovered?2:1.5);
-    ctx.shadowBlur=0;
-
-    // Icon
-    ctx.font=(isHovered?'18':'15')+'px serif';
-    ctx.fillText(m.icon, ~~(px+13), ~~(ry+22));
-
-    // Title — bigger on hover
-    const titleSz = isHovered ? 7 : 6;
-    const titleCol = m.claimed?'#4ade80': m.done?'#fde047': isHovered?'#93c5fd':'#e2e8f0';
-    ctx.font=titleSz+'px "Press Start 2P"';
-    ctx.fillStyle=titleCol;
-    ctx.fillText(m.title, ~~(px+36), ~~(ry+14));
-
-    // Description — always visible, larger on hover
-    const descSz = isHovered ? 6 : 5;
-    ctx.font=descSz+'px "Press Start 2P"';
-    ctx.fillStyle= isHovered?'#9ca3af':'#4b5563';
-    ctx.fillText(m.desc, ~~(px+36), ~~(ry+26));
-
-    // Progress bar
-    const bw = pw-130;
-    const bx2 = px+36, by2 = ry+(isHovered?36:30);
-    const barH = isHovered ? 8 : 6;
-    R(bx2, by2, bw, barH, '#1f2937');
-    const pct = Math.min(1,(m.progress||0)/m.target);
-    const barCol = m.claimed?'#22c55e': m.done?'#86efac':'#3b82f6';
-    R(bx2, by2, bw*pct, barH, barCol);
-    O(bx2, by2, bw, barH, '#374151', 1);
-
-    // Progress label
-    ctx.font='5px "Press Start 2P"';
-    ctx.fillStyle='#6b7280';
-    ctx.fillText((m.progress||0)+'/'+m.target, ~~(bx2+bw+4), ~~(by2+barH));
-
-    // Claim / status
-    if(m.done && !m.claimed){
-      const btnCol = isHovered ? '#22c55e' : '#166534';
-      R(px+pw-78, ry+8, 64, 22, btnCol);
-      O(px+pw-78, ry+8, 64, 22, '#22c55e', isHovered?2:1);
-      ctx.font='5px "Press Start 2P"';
-      ctx.fillStyle= isHovered?'#000':'#4ade80';
-      ctx.fillText('CLAIM +🪙'+m.reward.coins, ~~(px+pw-76), ~~(ry+22));
-      m._claimBx=px+pw-78; m._claimBy=ry+8; m._claimBw=64; m._claimBh=22;
-    } else if(m.claimed){
-      ctx.font='5px "Press Start 2P"';
-      ctx.fillStyle='#22c55e';
-      ctx.fillText('✅ CLAIMED', ~~(px+pw-76), ~~(ry+22));
-    } else {
-      ctx.font='5px "Press Start 2P"';
-      ctx.fillStyle='#374151';
-      ctx.fillText('🪙+'+m.reward.coins, ~~(px+pw-72), ~~(ry+22));
-    }
-  });
-
-  ctx.restore();
-}
-
-// Track mouse position for hover
-function getMissionHitAt(mx, my){
-  if(!missionPanelOpen) return null;
-  const pw=Math.min(W*0.88,520), ph=Math.min(H*0.85,520);
-  const px=(W-pw)/2, py=(H-ph)/2;
-  const rowH=52;
-  const visRows=Math.floor((ph-56)/rowH);
-  const visible=missions.slice(missionScroll, missionScroll+visRows+1);
-  let found=null;
-  visible.forEach((m,i)=>{
-    const ry=py+30+i*rowH;
-    if(mx>px+6&&mx<px+pw-6&&my>ry&&my<ry+rowH) found=m;
-  });
-  return found;
-}
-
-canvas.addEventListener('mousemove', e=>{
-  if(!missionPanelOpen) return;
-  const rect=canvas.getBoundingClientRect();
-  const mx=e.clientX-rect.left, my=e.clientY-rect.top;
-  const m=getMissionHitAt(mx,my);
-  missionHover=m?m.id:null;
-  canvas.style.cursor=m?'pointer':'default';
-});
-
-canvas.addEventListener('click', e=>{
-  if(!missionPanelOpen) return;
-  const rect=canvas.getBoundingClientRect();
-  const mx=e.clientX-rect.left, my=e.clientY-rect.top;
-  // Tap outside panel = close
-  const pw=Math.min(W*0.88,520), ph=Math.min(H*0.85,520);
-  const px=(W-pw)/2, py=(H-ph)/2;
-  if(mx<px||mx>px+pw||my<py||my>py+ph){
-    missionPanelOpen=false; missionHover=null; canvas.style.cursor='default'; return;
-  }
-  // Tap on claim button
-  missions.forEach(m=>{
-    if(m._claimBx&&mx>m._claimBx&&mx<m._claimBx+m._claimBw&&my>m._claimBy&&my<m._claimBy+m._claimBh){
-      claimMission(m.id);
-    }
-  });
-  // Tap on row = hover highlight + claim if done
-  const hit=getMissionHitAt(mx,my);
-  if(hit){
-    missionHover=hit.id;
-    if(hit.done&&!hit.claimed) claimMission(hit.id);
-  }
-});
-
-canvas.addEventListener('touchstart', e=>{
-  if(!missionPanelOpen) return;
-  e.preventDefault();
-  const rect=canvas.getBoundingClientRect();
-  const t=e.changedTouches[0];
-  const mx=t.clientX-rect.left, my=t.clientY-rect.top;
-  // Tap outside = close
-  const pw=Math.min(W*0.88,520), ph=Math.min(H*0.85,520);
-  const pxP=(W-pw)/2, pyP=(H-ph)/2;
-  if(mx<pxP||mx>pxP+pw||my<pyP||my>pyP+ph){
-    missionPanelOpen=false; missionHover=null; canvas.style.cursor='default'; return;
-  }
-  // Scroll arrows
-  const rowH=52, visRows=Math.floor((ph-56)/rowH);
-  const maxScroll=Math.max(0,missions.length-visRows);
-  if(my<pyP+40 && missionScroll>0){ missionScroll--; return; }
-  if(my>pyP+ph-30 && missionScroll<maxScroll){ missionScroll++; return; }
-  // Tap row
-  const hit=getMissionHitAt(mx,my);
-  if(hit){
-    missionHover=hit.id;
-    if(hit.done&&!hit.claimed) claimMission(hit.id);
-    // Claim button area
-    if(hit._claimBx&&mx>hit._claimBx&&mx<hit._claimBx+hit._claimBw&&my>hit._claimBy&&my<hit._claimBy+hit._claimBh){
-      claimMission(hit.id);
-    }
-  }
-},{passive:false});
-
-canvas.addEventListener('touchmove', e=>{
-  if(!missionPanelOpen) return;
-  e.preventDefault();
-  // Swipe to scroll
-  const rect=canvas.getBoundingClientRect();
-  const t=e.changedTouches[0];
-  const my=t.clientY-rect.top;
-  const ph=Math.min(H*0.85,520);
-  const pyP=(H-ph)/2;
-  const rowH=52, visRows=Math.floor((ph-56)/rowH);
-  const maxScroll=Math.max(0,missions.length-visRows);
-  if(!canvas._mTouchY) canvas._mTouchY=my;
-  const dy=canvas._mTouchY-my;
-  if(Math.abs(dy)>18){
-    missionScroll=Math.max(0,Math.min(maxScroll,missionScroll+(dy>0?1:-1)));
-    canvas._mTouchY=my;
-  }
-},{passive:false});
-
-canvas.addEventListener('touchend', e=>{
-  canvas._mTouchY=null;
-},{passive:true});
-
-canvas.addEventListener('contextmenu', e=>{
-  e.preventDefault();
-  e.stopPropagation();
-  if(missionPanelOpen){ missionPanelOpen=false; missionHover=null; canvas.style.cursor='default'; return; }
-  if(SCENE==='pcscreen'){ SCENE='interior';finishAct('pc');addMsg('Closed PC. Coins earned!'); return; }
-  if(SCENE==='town'&&fishingState.active){ stopFishing(); return; }
-});
-
-canvas.addEventListener('wheel', e=>{
-  if(!missionPanelOpen) return;
-  e.preventDefault();
-  missionScroll += e.deltaY>0 ? 1 : -1;
-},{passive:false});
+const inv={bread:0,veggie:0,cake:0,lumber:0,tool:0,nail:0,brick:0,glass:0,wire:0,pipe:0};
 
 // ── PLAYER ──
 const player={x:500,y:850,vx:0,vy:0,dir:2,frame:0,animT:0,speed:2.8};
@@ -676,7 +355,6 @@ const BUILDINGS=[
 
 // ── SPORTS COURTS ──
 const TENNIS_COURT = { x:940, y:50,  w:340, h:240, type:'tennis' };
-const POND = { x:1920, y:820, w:220, h:160 };
 const BBALL_COURT  = { x:1360, y:50, w:300, h:260, type:'basketball' };
 const PLAYGROUND   = { x:940,  y:380, w:340, h:280 };
 const BASEBALL_FIELD = { x:1360, y:400, w:420, h:360 };
@@ -966,7 +644,6 @@ const SELL_ITEMS=[
   {key:'glass', name:'Glass', ico:'🪟',price:16},
   {key:'wire',  name:'Wiring',ico:'🔌',price:20},
   {key:'pipe',  name:'Pipes', ico:'🚿',price:15},
-  {key:'fish',  name:'Fish',  ico:'🐟',price:22},
 ];
 
 // ── SHOP INTERIOR ──
@@ -1162,17 +839,6 @@ function updateWanderingNPCs() {
     npc.x += npc.vx;
     npc.y += npc.vy;
 
-    // Pond collision
-    const pondCX=POND.x+POND.w/2, pondCY=POND.y+POND.h/2;
-    const pondRX=POND.w/2-6, pondRY=POND.h/2-6;
-    const pdxN=(npc.x-pondCX)/pondRX, pdyN=(npc.y-pondCY)/pondRY;
-    if(pdxN*pdxN+pdyN*pdyN<1){
-      const angle=Math.atan2(npc.y-pondCY, npc.x-pondCX);
-      npc.x=pondCX+Math.cos(angle)*(pondRX+2);
-      npc.y=pondCY+Math.sin(angle)*(pondRY+2);
-      npc.vx+=Math.cos(angle)*0.8;
-      npc.vy+=Math.sin(angle)*0.8;
-    }
     // Bounce off MAP bounds with margin
     const margin = 30;
     if(npc.x < margin) { npc.vx = Math.abs(npc.vx); npc.x = margin; }
@@ -1678,198 +1344,6 @@ let baseballNPCs = {
   bX:0, bY:0, bVX:0, bVY:0, ballActive:false, inFlight:false, landed:false,
   trail: [],
 };
-
-// ── FISHING STATE ──
-const FISH_TYPES = [
-  { name:'Minnow',   ico:'🐟', rarity:0.40, coins:8,  time:4  },
-  { name:'Bass',     ico:'🐠', rarity:0.28, coins:18, time:6  },
-  { name:'Catfish',  ico:'🐡', rarity:0.16, coins:28, time:8  },
-  { name:'Salmon',   ico:'🍣', rarity:0.10, coins:40, time:10 },
-  { name:'Goldfish', ico:'🏅', rarity:0.04, coins:60, time:12 },
-  { name:'Boot',     ico:'👢', rarity:0.02, coins:0,  time:3  },
-];
-let fishingState = {
-  active: false,
-  phase: 'idle',   // idle | casting | waiting | biting | reeling | caught | failed
-  castT: 0,
-  waitT: 0, waitMax: 0,
-  biteT: 0, biteMax: 0,
-  reelT: 0, reelMax: 0,
-  reelPower: 0, reelDir: 1,
-  bobX: 0, bobY: 0,
-  bobAnim: 0,
-  lineProgress: 0,
-  catch: null,
-  flashT: 0,
-  totalCaught: 0,
-  msg: '',
-  msgT: 0,
-  ripples: [],
-  // animated fish in pond
-  pondFish: [],
-};
-
-function initFishingPondFish() {
-  fishingState.pondFish = [];
-  for(let i=0;i<8;i++){
-    fishingState.pondFish.push({
-      x: POND.x + 20 + Math.random()*(POND.w-40),
-      y: POND.y + 20 + Math.random()*(POND.h-40),
-      vx: (Math.random()-0.5)*0.6,
-      vy: (Math.random()-0.5)*0.3,
-      t: Math.random()*Math.PI*2,
-      type: FISH_TYPES[Math.floor(Math.random()*4)],
-      scale: 0.6+Math.random()*0.5,
-      flipT: 0,
-    });
-  }
-}
-
-function startFishing() {
-  if(fishingState.active) return;
-  fishingState.active = true;
-  fishingState.phase = 'casting';
-  fishingState.castT = 0;
-  fishingState.lineProgress = 0;
-  fishingState.catch = null;
-  fishingState.msg = 'Casting...';
-  fishingState.msgT = 60;
-  const p = POND;
-  fishingState.bobX = p.x + p.w*0.3 + Math.random()*p.w*0.4;
-  fishingState.bobY = p.y + p.h*0.3 + Math.random()*p.h*0.4;
-  addMsg('🎣 Fishing! Press [E] when the bob dips — BITE!');
-}
-
-function stopFishing() {
-  fishingState.active = false;
-  fishingState.phase = 'idle';
-  fishingState.reelPower = 0;
-  addMsg('Stopped fishing.');
-}
-
-function fishingInteract() {
-  const fs = fishingState;
-  if(fs.phase==='idle'||fs.phase==='casting') return;
-  if(fs.phase==='waiting') {
-    // Early — miss
-    fs.phase='failed'; fs.flashT=40;
-    fs.msg='Too early! Wait for the bite...'; fs.msgT=90;
-    addMsg('🎣 Too early! Wait for the bob to dip!');
-    setTimeout(()=>{ if(fs.active){ fs.phase='casting'; fs.castT=0; fs.lineProgress=0;
-      fs.waitT=0; fs.waitMax=120+Math.floor(Math.random()*300);
-      fs.msg='Casting...'; fs.msgT=60; } }, 1200);
-    return;
-  }
-  if(fs.phase==='biting') {
-    // Perfect! Start reeling
-    fs.phase='reeling'; fs.reelT=0; fs.reelMax=180;
-    fs.reelPower=50; fs.reelDir=1;
-    fs.msg='REEL IT IN! Keep pressing [F]!'; fs.msgT=999;
-    addMsg('🎣 Fish on! Keep pressing [F] to reel!');
-    return;
-  }
-  if(fs.phase==='reeling') {
-    fs.reelPower = Math.min(100, fs.reelPower+14);
-    return;
-  }
-}
-
-function updateFishing() {
-  const fs = fishingState;
-  if(!fs.active) return;
-  if(fs.msgT>0) fs.msgT--;
-  if(fs.flashT>0) fs.flashT--;
-  fs.bobAnim += 0.08;
-
-  // Animate pond fish
-  fs.pondFish.forEach(f=>{
-    f.t += 0.02;
-    f.x += f.vx + Math.sin(f.t)*0.15;
-    f.y += f.vy + Math.cos(f.t*0.7)*0.08;
-    // Bounce inside pond
-    if(f.x<POND.x+12){ f.vx=Math.abs(f.vx); f.x=POND.x+12; }
-    if(f.x>POND.x+POND.w-12){ f.vx=-Math.abs(f.vx); f.x=POND.x+POND.w-12; }
-    if(f.y<POND.y+10){ f.vy=Math.abs(f.vy); f.y=POND.y+10; }
-    if(f.y>POND.y+POND.h-10){ f.vy=-Math.abs(f.vy); f.y=POND.y+POND.h-10; }
-  });
-
-  // Update ripples
-  fs.ripples = fs.ripples.filter(r=>{ r.r+=0.8; r.a-=0.025; return r.a>0; });
-  if(Math.random()<0.04) fs.ripples.push({x:POND.x+20+Math.random()*(POND.w-40), y:POND.y+10+Math.random()*(POND.h-20), r:2, a:0.5});
-
-  if(fs.phase==='casting') {
-    fs.castT++;
-    fs.lineProgress = Math.min(1, fs.castT/40);
-    if(fs.castT>=40) {
-      fs.phase='waiting';
-      fs.waitT=0;
-      fs.waitMax=140+Math.floor(Math.random()*280);
-      fs.msg='Waiting for a bite...'; fs.msgT=999;
-      fs.ripples.push({x:fs.bobX, y:fs.bobY, r:2, a:0.8});
-    }
-  }
-
-  else if(fs.phase==='waiting') {
-    fs.waitT++;
-    if(fs.waitT>=fs.waitMax) {
-      fs.phase='biting';
-      fs.biteT=0; fs.biteMax=55+Math.floor(Math.random()*30);
-      fs.msg='🐟 BITE! Press [E] NOW!'; fs.msgT=fs.biteMax;
-      fs.ripples.push({x:fs.bobX, y:fs.bobY, r:3, a:1});
-      fs.ripples.push({x:fs.bobX, y:fs.bobY, r:6, a:0.8});
-      playTone(440,0.08,'square',0.14); setTimeout(()=>playTone(550,0.1,'square',0.14),80);
-      addMsg('🐟 BITE! Press [E] NOW!');
-    }
-  }
-
-  else if(fs.phase==='biting') {
-    fs.biteT++;
-    if(fs.biteT>=fs.biteMax) {
-      // Got away
-      fs.phase='failed'; fs.flashT=30;
-      fs.msg='It got away! 😔'; fs.msgT=90;
-      addMsg('🎣 The fish got away!');
-      playTone(220,0.12,'sawtooth',0.12);
-      setTimeout(()=>{ if(fs.active){ fs.phase='casting'; fs.castT=0; fs.lineProgress=0;
-        fs.msg='Casting again...'; fs.msgT=60; } }, 1400);
-    }
-  }
-
-  else if(fs.phase==='reeling') {
-    fs.reelT++;
-    fs.reelPower -= 0.55; // drain if not pressing
-    fs.reelPower = Math.max(0, Math.min(100, fs.reelPower));
-    if(fs.reelPower<=0) {
-      // Fish escaped
-      fs.phase='failed'; fs.flashT=30;
-      fs.msg='Line went slack! Fish escaped! 😤'; fs.msgT=90;
-      addMsg('🎣 Fish escaped! Keep the power up!');
-      playTone(200,0.14,'sawtooth',0.1);
-      setTimeout(()=>{ if(fs.active){ fs.phase='casting'; fs.castT=0; fs.lineProgress=0;
-        fs.msg='Casting again...'; fs.msgT=60; } }, 1400);
-      return;
-    }
-    if(fs.reelT>=fs.reelMax && fs.reelPower>20) {
-      // Caught!
-      const roll = Math.random();
-      let cumul=0, caught=FISH_TYPES[0];
-      for(const ft of FISH_TYPES){ cumul+=ft.rarity; if(roll<cumul){caught=ft;break;} }
-      fs.catch=caught; fs.phase='caught'; fs.flashT=120;
-      fs.msg='You caught a '+caught.name+'! '+caught.ico; fs.msgT=180;
-      if(caught.key!=='boot') { inv.fish=(inv.fish||0)+1; updateInvUI(); }
-      coins+=caught.coins; updateHUD();
-      fs.totalCaught++;
-      addFloat(fs.bobX, fs.bobY-20, caught.ico+' +🪙'+caught.coins, '#ffd700');
-      spawnP(fs.bobX, fs.bobY, '#38bdf8');
-      playTone(523,0.08,'square',0.14); setTimeout(()=>playTone(659,0.08,'square',0.14),70);
-      setTimeout(()=>playTone(784,0.12,'square',0.14),140); setTimeout(()=>playTone(1047,0.16,'square',0.14),210);
-      addMsg('🎉 Caught a '+caught.name+'! +🪙'+caught.coins);
-      mLogCollect('fish'); checkMissions();
-      setTimeout(()=>{ if(fs.active){ fs.phase='casting'; fs.castT=0; fs.lineProgress=0;
-        fs.catch=null; fs.msg='Casting again...'; fs.msgT=60; } }, 2200);
-    }
-  }
-}
 
 // ── BASEBALL MINIGAME STATE ──
 let baseballState = {
@@ -2520,13 +1994,12 @@ function tennisAwardSet(winner){
   ts.pGames=0; ts.aiGames=0;
   ts.pointMsg='SET '+(winner==='player'?'YOU':'CPU')+'!   '+ts.pSets+' - '+ts.aiSets+' sets';
   ts.pointMsgT=160;
-  if(ts.pSets>=2){ ts.matchResult='won'; coins+=50; addMsg('🏆 Match Won! +50🪙'); updateHUD(); mLogWin('tennis'); mLogCoins(50); checkMissions(); }
-  else if(ts.aiSets>=2){ ts.matchResult='lost'; coins+=10; addMsg('😔 Match Lost. +10🪙'); updateHUD(); mLogCoins(10); checkMissions(); }
+  if(ts.pSets>=2){ ts.matchResult='won'; coins+=50; addMsg('🏆 Match Won! +50🪙'); updateHUD(); }
+  else if(ts.aiSets>=2){ ts.matchResult='lost'; coins+=10; addMsg('😔 Match Lost. +10🪙'); updateHUD(); }
 }
 
 function initTennis(){
   SCENE='tennis';
-  mLogScene('tennis'); checkMissions();
   const ts=tennisState;
   ts.cX=W*0.22; ts.cY=H*0.10;
   ts.cW=W*0.56; ts.cH=H*0.80;
@@ -2882,7 +2355,6 @@ function drawTennisGame(){
 // ──────────────────────────────────────────────────────────────────────────────
 function initBball(){
   SCENE='basketball';
-  mLogScene('basketball'); checkMissions();
   const cw=Math.min(W*0.72,520), ch=Math.min(H*0.62,380);
   const cx=(W-cw)/2, cy=(H-ch)/2+20;
   const bs=bballState;
@@ -3008,7 +2480,7 @@ function updateBball(){
         const is3=distToHoop>240;
         if(is3) coins+=3; else coins+=1;
         addFloat2(bs.courtX+bs.courtW/2,bs.courtY-12,is3?'3 PTR! 🔥':'SCORE! 🏀','#4ade80');
-        sndScore(); updateHUD(); mLogBball(1); mLogCoins(is3?3:1); checkMissions();
+        sndScore(); updateHUD();
         bs.aiHasBall=true; bs.playerHasBall=false;
         bs.playerX=bs.courtX+bs.courtW*0.15; bs.playerY=bs.courtY+bs.courtH/2;
         bs.aiPosX=bs.courtX+bs.courtW*0.85; bs.aiPosY=bs.courtY+bs.courtH/2;
@@ -3334,7 +2806,6 @@ function drawBballGame(){
 
 function initBaseball() {
   SCENE = 'baseball';
-  mLogScene('baseball'); checkMissions();
   const bs = baseballState;
   const cw = Math.min(W*0.82, 600), ch = Math.min(H*0.78, 460);
   const cx = (W-cw)/2, cy = (H-ch)/2+12;
@@ -3805,202 +3276,6 @@ function drawBaseballGame() {
   floats.forEach(f=>{ ctx.globalAlpha=f.life/f.maxLife; T(f.text,f.x,f.y,f.color,8); ctx.globalAlpha=1; });
 }
 
-function drawPond(cx, cy) {
-  const {x,y,w,h} = POND;
-  const sx=x-cx, sy=y-cy;
-  if(sx+w<-40||sx>W+40||sy+h<-40||sy>H+40) return;
-
-  const fs = fishingState;
-  const tod = gameTime/DAY_LEN;
-  const isNight = tod<0.2||tod>0.8;
-
-  // Ground around pond
-  ctx.fillStyle = SEASONS.current==='winter'?'#c8d8e8':'#2d5a1e';
-  ctx.beginPath(); ctx.ellipse(~~(sx+w/2),~~(sy+h/2+6),w/2+18,h/2+14,0,0,Math.PI*2); ctx.fill();
-
-  // Reeds/grass around edge
-  const reedCol = SEASONS.current==='autumn'?'#92400e': SEASONS.current==='winter'?'#94a3b8':'#15803d';
-  for(let ri=0;ri<14;ri++){
-    const ang=(ri/14)*Math.PI*2;
-    const rx=sx+w/2+Math.cos(ang)*(w/2-4), ry=sy+h/2+Math.sin(ang)*(h/2-4);
-    ctx.strokeStyle=reedCol; ctx.lineWidth=2;
-    ctx.beginPath(); ctx.moveTo(~~rx,~~ry); ctx.lineTo(~~rx,~~(ry-10-Math.sin(ri)*4)); ctx.stroke();
-    if(ri%3===0){
-      ctx.fillStyle='#78350f';
-      ctx.fillRect(~~rx-1,~~(ry-14),3,6);
-    }
-  }
-
-  // Water body — pixel-tiled
-  const waterBase = isNight?'#0c2a4a': SEASONS.current==='winter'?'#b8d4e8':'#1e40af';
-  const waterShine= isNight?'#1e3a6e': SEASONS.current==='winter'?'#d0e8f8':'#2563eb';
-  ctx.save();
-  ctx.beginPath(); ctx.ellipse(~~(sx+w/2),~~(sy+h/2),w/2,h/2,0,0,Math.PI*2); ctx.clip();
-
-  // Fill water with pixel blocks
-  const P=6;
-  for(let wy=sy;wy<sy+h;wy+=P){
-    for(let wx=sx;wx<sx+w;wx+=P){
-      const col=(Math.floor(wx/P)+Math.floor(wy/P)+Math.floor(globalT/12))%4===0?waterShine:waterBase;
-      ctx.fillStyle=col; ctx.fillRect(~~wx,~~wy,P,P);
-    }
-  }
-
-  // Shimmer lines
-  ctx.strokeStyle='rgba(147,197,253,0.25)'; ctx.lineWidth=1;
-  for(let sl=0;sl<4;sl++){
-    const sy2=sy+h*0.2+sl*(h*0.18)+Math.sin(globalT*0.03+sl)*4;
-    ctx.beginPath(); ctx.moveTo(~~(sx+w*0.15),~~sy2); ctx.lineTo(~~(sx+w*0.65),~~sy2); ctx.stroke();
-  }
-
-  // Night reflection sparkles
-  if(isNight){
-    ctx.fillStyle='rgba(255,255,210,0.6)';
-    [[0.3,0.3],[0.6,0.5],[0.45,0.7],[0.2,0.6],[0.7,0.3]].forEach(([fx,fy])=>{
-      const sp=(globalT*0.04+fx*10)%1;
-      ctx.globalAlpha=Math.abs(Math.sin(sp*Math.PI))*0.7;
-      ctx.fillRect(~~(sx+w*fx),~~(sy+h*fy),2,2);
-    });
-    ctx.globalAlpha=1;
-  }
-
-  // Animated pond fish (visible just below surface)
-  fs.pondFish.forEach(f=>{
-    const fx=f.x-cx, fy=f.y-cy;
-    ctx.save();
-    ctx.globalAlpha=0.55;
-    ctx.translate(~~fx,~~fy);
-    ctx.scale(f.vx<0?-f.scale:f.scale, f.scale);
-    ctx.font='11px serif'; ctx.fillText(f.type.ico,-6,4);
-    ctx.restore();
-    ctx.globalAlpha=1;
-  });
-
-  // Ripples
-  fs.ripples.forEach(r=>{
-    const rx=r.x-cx, ry2=r.y-cy;
-    ctx.strokeStyle=`rgba(147,197,253,${r.a})`; ctx.lineWidth=1.5;
-    ctx.beginPath(); ctx.ellipse(~~rx,~~ry2,r.r,r.r*0.4,0,0,Math.PI*2); ctx.stroke();
-  });
-
-  ctx.restore(); // un-clip
-
-  // Pond border — pixel style
-  ctx.strokeStyle='#1e3a8a'; ctx.lineWidth=3;
-  ctx.beginPath(); ctx.ellipse(~~(sx+w/2),~~(sy+h/2),w/2,h/2,0,0,Math.PI*2); ctx.stroke();
-  ctx.strokeStyle='rgba(147,197,253,0.4)'; ctx.lineWidth=1;
-  ctx.beginPath(); ctx.ellipse(~~(sx+w/2),~~(sy+h/2),w/2-3,h/2-3,0,0,Math.PI*2); ctx.stroke();
-
-  // Fishing line + bob when active
-  if(fs.active && fs.phase!=='idle') {
-    const playerSx = player.x-cx, playerSy = player.y-cy;
-    const bobSx = fs.bobX-cx, bobSy = fs.bobY-cy;
-    const prog = fs.lineProgress;
-
-    // Line from player to bob
-    ctx.strokeStyle='rgba(200,200,200,0.85)'; ctx.lineWidth=1;
-    ctx.beginPath();
-    ctx.moveTo(~~playerSx, ~~(playerSy-18));
-    ctx.quadraticCurveTo(
-      ~~((playerSx+bobSx)/2), ~~(playerSy-18-40*prog),
-      ~~(playerSx+(bobSx-playerSx)*prog),
-      ~~(playerSy-18+(bobSy-playerSy+18)*prog)
-    );
-    ctx.stroke();
-
-    if(prog>=1){
-      // Bob float
-      const bobDip = (fs.phase==='biting') ? Math.sin(fs.biteT*0.35)*6 : Math.sin(fs.bobAnim)*3;
-      const bx=~~bobSx, by=~~(bobSy+bobDip);
-
-      // Bob shadow
-      ctx.fillStyle='rgba(0,0,0,0.2)'; ctx.beginPath(); ctx.ellipse(bx,by+4,5,2,0,0,Math.PI*2); ctx.fill();
-      // Bob body (pixel style — two rectangles)
-      ctx.fillStyle= fs.phase==='biting'?'#ef4444':'#ef4444';
-      ctx.fillRect(bx-3, by-8, 6, 8);    // top red
-      ctx.fillStyle='#f8fafc';
-      ctx.fillRect(bx-3, by, 6, 6);      // bottom white
-      // Bob tip
-      ctx.fillStyle='#ffd700'; ctx.fillRect(bx-1,by-10,2,3);
-
-      // Bite pulse ring
-      if(fs.phase==='biting'){
-        const pulse=0.5+Math.sin(fs.biteT*0.3)*0.5;
-        ctx.strokeStyle=`rgba(239,68,68,${pulse})`; ctx.lineWidth=2;
-        ctx.beginPath(); ctx.arc(bx,by,10+pulse*6,0,Math.PI*2); ctx.stroke();
-      }
-
-      // Reel power meter
-      if(fs.phase==='reeling'){
-        const mw=60, mh=8, mx2=bx-mw/2, my2=by-28;
-        ctx.fillStyle='#1f2937'; ctx.fillRect(~~mx2,~~my2,mw,mh);
-        const pc=fs.reelPower/100;
-        const mc=pc>0.6?'#22c55e':pc>0.3?'#fde047':'#ef4444';
-        ctx.fillStyle=mc; ctx.fillRect(~~mx2,~~my2,~~(mw*pc),mh);
-        ctx.strokeStyle='#374151'; ctx.lineWidth=1; ctx.strokeRect(~~mx2,~~my2,mw,mh);
-        ctx.font='4px "Press Start 2P"'; ctx.fillStyle='#e2e8f0';
-        ctx.fillText('REEL [E]',~~(mx2+2),~~(my2-3));
-      }
-    }
-  }
-
-  // Catch splash flash
-  if(fs.flashT>0 && fs.phase==='caught'){
-    const fc=fs.flashT/120;
-    ctx.fillStyle=`rgba(147,197,253,${fc*0.3})`;
-    ctx.beginPath(); ctx.ellipse(~~(sx+w/2),~~(sy+h/2),w/2,h/2,0,0,Math.PI*2); ctx.fill();
-  }
-
-  // Fishing prompt
-  const pdx=player.x-(x+w/2), pdy=player.y-(y+h/2);
-  const pdist=Math.hypot(pdx,pdy);
-  if(pdist<110 && !fs.active){
-    R(sx+w/2-42,sy+h+8,84,14,'#000');
-    O(sx+w/2-42,sy+h+8,84,14,'#38bdf8');
-    T('[E] FISH HERE',sx+w/2-40,sy+h+19,'#7dd3fc',5);
-  }
-  if(fs.active){
-    R(sx+w/2-50,sy+h+8,100,14,'#000');
-    O(sx+w/2-50,sy+h+8,100,14,'#ef4444');
-    T('[ESC] STOP FISHING',sx+w/2-48,sy+h+19,'#fca5a5',5);
-  }
-
-  // Fishing message overlay
-  if(fs.msgT>0 && fs.msg){
-    const fade=Math.min(1,fs.msgT/20);
-    ctx.globalAlpha=fade;
-    const mw2=ctx.measureText(fs.msg).width+24;
-    ctx.font='6px "Press Start 2P"';
-    R(~~(sx+w/2-mw2/2),sy-28,~~mw2,16,'rgba(0,0,0,0.9)');
-    O(~~(sx+w/2-mw2/2),sy-28,~~mw2,16, fs.phase==='biting'?'#ef4444':'#38bdf8',1.5);
-    ctx.fillStyle= fs.phase==='biting'?'#fca5a5':'#7dd3fc';
-    ctx.fillText(fs.msg,~~(sx+w/2-mw2/2+12),sy-16);
-    ctx.globalAlpha=1;
-  }
-
-  // Caught popup
-  if(fs.phase==='caught'&&fs.catch){
-    const fade=Math.min(1,fs.flashT/20);
-    ctx.globalAlpha=fade;
-    R(sx+w/2-52,sy+h/2-28,104,36,'rgba(0,0,0,0.95)');
-    O(sx+w/2-52,sy+h/2-28,104,36,'#ffd700',2);
-    ctx.font='16px serif'; ctx.fillText(fs.catch.ico,~~(sx+w/2-42),~~(sy+h/2-4));
-    T(fs.catch.name,sx+w/2-22,sy+h/2-14,'#fde047',6);
-    T('+🪙'+fs.catch.coins,sx+w/2-20,sy+h/2+4,'#22c55e',6);
-    ctx.globalAlpha=1;
-  }
-
-  // Sign
-  R(sx+w/2-24,sy-20,48,14,'#0c4a6e');
-  O(sx+w/2-24,sy-20,48,14,'#38bdf8');
-  T('POND',sx+w/2-20,sy-9,'#7dd3fc',6);
-
-  // Caught counter
-  if(fs.totalCaught>0){
-    T('🐟×'+fs.totalCaught, sx+w/2-16, sy+h+36,'#7dd3fc',5);
-  }
-}
-
 function exitBaseball() {
   SCENE='town';
   player.x=BASEBALL_FIELD.x+BASEBALL_FIELD.w/2;
@@ -4208,188 +3483,56 @@ function drawTown(){
     ctx.fillStyle='rgba(0,0,0,0.28)';ctx.fillRect(~~(rx+38-cx),0,2,H);
   });
 
-  // Draw NPC houses — each index gets a unique shape/style
-  NPC_HOUSES.forEach((h,idx)=>{
+  // Draw NPC houses
+  NPC_HOUSES.forEach(h=>{
     const sx=h.x-cx, sy=h.y-cy;
     if(sx+h.w<-10||sx>W+10||sy+h.h<-10||sy>H+10) return;
-    const isNight=tod<0.2||tod>0.8;
-    const style=idx%6;
-
     // Shadow
     ctx.fillStyle='rgba(0,0,0,0.25)'; ctx.fillRect(~~sx+4,~~sy+4,~~h.w,~~h.h);
-
-    if(style===0){
-      // Classic gabled — tall & narrow
-      R(sx+8,sy,h.w-16,h.h,h.color);
-      R(sx+10,sy+3,h.w-20,h.h-6,h.color+'cc');
-      ctx.fillStyle=h.roof;
-      ctx.beginPath();ctx.moveTo(~~(sx+2),~~sy);ctx.lineTo(~~(sx+h.w/2),~~(sy-36));ctx.lineTo(~~(sx+h.w-2),~~sy);ctx.closePath();ctx.fill();
-      ctx.fillStyle='rgba(255,255,255,0.12)';
-      ctx.beginPath();ctx.moveTo(~~(sx+2),~~sy);ctx.lineTo(~~(sx+h.w/2),~~(sy-36));ctx.lineTo(~~(sx+h.w/2-5),~~(sy-36));ctx.lineTo(~~(sx+4),~~sy);ctx.closePath();ctx.fill();
-      R(sx+h.w/2-6,sy+h.h-24,12,24,'#3b1e08');
-      R(sx+h.w/2-4,sy+h.h-22,8,20,'#4a2800');
-      R(sx+h.w/2,sy+h.h-14,3,3,'#ffd700');
-      R(sx+10,sy+12,16,12,'#7dd3fc'); O(sx+10,sy+12,16,12,'#38bdf8',1);
-      R(sx+h.w-26,sy+12,16,12,'#7dd3fc'); O(sx+h.w-26,sy+12,16,12,'#38bdf8',1);
-      R(sx+17,sy+12,2,12,'#38bdf8'); R(sx+10,sy+17,16,2,'#38bdf8');
-      R(sx+h.w-19,sy+12,2,12,'#38bdf8'); R(sx+h.w-26,sy+17,16,2,'#38bdf8');
-      R(sx+h.w*0.6,sy-42,8,16,h.color); R(sx+h.w*0.6-2,sy-44,12,6,'#374151');
+    // Walls
+    R(sx,sy,h.w,h.h,h.color);
+    R(sx+3,sy+3,h.w-6,h.h-6,h.color+'cc');
+    // Roof (triangle)
+    ctx.fillStyle=h.roof;
+    ctx.beginPath();
+    ctx.moveTo(~~(sx-6),~~sy);
+    ctx.lineTo(~~(sx+h.w/2),~~(sy-28));
+    ctx.lineTo(~~(sx+h.w+6),~~sy);
+    ctx.closePath(); ctx.fill();
+    // Roof highlight
+    ctx.fillStyle='rgba(255,255,255,0.1)';
+    ctx.beginPath();
+    ctx.moveTo(~~(sx-4),~~sy);
+    ctx.lineTo(~~(sx+h.w/2),~~(sy-26));
+    ctx.lineTo(~~(sx+h.w/2-4),~~(sy-26));
+    ctx.lineTo(~~(sx-6),~~sy);
+    ctx.closePath(); ctx.fill();
+    // Door
+    R(sx+h.w/2-7,sy+h.h-22,14,22,'#3b1e08');
+    R(sx+h.w/2-5,sy+h.h-20,10,18,'#4a2800');
+    R(sx+h.w/2+1,sy+h.h-12,3,3,'#ffd700');
+    // Windows
+    R(sx+6, sy+10,18,14,'#7dd3fc'); O(sx+6, sy+10,18,14,'#38bdf8',1);
+    R(sx+h.w-24,sy+10,18,14,'#7dd3fc'); O(sx+h.w-24,sy+10,18,14,'#38bdf8',1);
+    // Window cross
+    R(sx+14,sy+10,2,14,'#38bdf8'); R(sx+6,sy+16,18,2,'#38bdf8');
+    R(sx+h.w-16,sy+10,2,14,'#38bdf8'); R(sx+h.w-24,sy+16,18,2,'#38bdf8');
+    // Night glow
+    if(tod<0.2||tod>0.8){
+      ctx.fillStyle='rgba(251,191,36,0.25)';
+      ctx.fillRect(~~(sx+6),~~(sy+10),18,14);
+      ctx.fillRect(~~(sx+h.w-24),~~(sy+10),18,14);
     }
-    else if(style===1){
-      // Cottage — wide & low with thick rounded roof
-      R(sx,sy+14,h.w,h.h-14,h.color);
-      R(sx+3,sy+17,h.w-6,h.h-20,h.color+'cc');
-      // Rounded roof (arc)
-      ctx.fillStyle=h.roof;
-      ctx.beginPath();
-      ctx.moveTo(~~(sx-4),~~(sy+16));
-      ctx.quadraticCurveTo(~~(sx+h.w/2),~~(sy-22),~~(sx+h.w+4),~~(sy+16));
-      ctx.closePath(); ctx.fill();
-      ctx.fillStyle='rgba(255,255,255,0.1)';
-      ctx.beginPath();
-      ctx.moveTo(~~(sx-2),~~(sy+14));
-      ctx.quadraticCurveTo(~~(sx+h.w/2-6),~~(sy-18),~~(sx+h.w/2),~~(sy-20));
-      ctx.quadraticCurveTo(~~(sx+h.w/2-10),~~(sy-16),~~(sx),~~(sy+14));
-      ctx.closePath(); ctx.fill();
-      R(sx+h.w/2-8,sy+h.h-20,16,20,'#3b1e08');
-      R(sx+h.w/2-6,sy+h.h-18,12,18,'#5a3010');
-      R(sx+h.w/2-1,sy+h.h-11,3,3,'#ffd700');
-      R(sx+7,sy+22,20,14,'#7dd3fc'); O(sx+7,sy+22,20,14,'#38bdf8',1);
-      R(sx+h.w-27,sy+22,20,14,'#7dd3fc'); O(sx+h.w-27,sy+22,20,14,'#38bdf8',1);
-      R(sx+16,sy+22,2,14,'#38bdf8'); R(sx+7,sy+28,20,2,'#38bdf8');
-      R(sx+h.w-18,sy+22,2,14,'#38bdf8'); R(sx+h.w-27,sy+28,20,2,'#38bdf8');
-      // Flower boxes under windows
-      R(sx+5,sy+36,24,5,'#92400e'); R(sx+6,sy+37,22,3,'#166534');
-      R(sx+h.w-29,sy+36,24,5,'#92400e'); R(sx+h.w-28,sy+37,22,3,'#166534');
-    }
-    else if(style===2){
-      // A-frame — steep triangle all the way down
-      ctx.fillStyle=h.color;
-      ctx.beginPath();ctx.moveTo(~~(sx+h.w/2),~~(sy-40));ctx.lineTo(~~(sx+h.w+6),~~(sy+h.h));ctx.lineTo(~~(sx-6),~~(sy+h.h));ctx.closePath();ctx.fill();
-      ctx.fillStyle=h.roof;
-      ctx.beginPath();ctx.moveTo(~~(sx+h.w/2),~~(sy-40));ctx.lineTo(~~(sx+h.w+6),~~(sy+h.h));ctx.lineTo(~~(sx+h.w),~~(sy+h.h));ctx.lineTo(~~(sx+h.w/2),~~(sy-34));ctx.lineTo(~~(sx),~~(sy+h.h));ctx.lineTo(~~(sx-6),~~(sy+h.h));ctx.closePath();ctx.fill();
-      ctx.fillStyle='rgba(255,255,255,0.1)';
-      ctx.beginPath();ctx.moveTo(~~(sx+h.w/2),~~(sy-40));ctx.lineTo(~~(sx+h.w/2-8),~~(sy+h.h*0.3));ctx.lineTo(~~(sx+h.w/2-4),~~(sy+h.h*0.3));ctx.lineTo(~~(sx+h.w/2+2),~~(sy-38));ctx.closePath();ctx.fill();
-      // Door at base center
-      R(sx+h.w/2-8,sy+h.h-28,16,28,'#3b1e08');
-      R(sx+h.w/2-6,sy+h.h-26,12,24,'#4a2800');
-      // Triangular window up top
-      ctx.fillStyle='#7dd3fc';
-      ctx.beginPath();ctx.moveTo(~~(sx+h.w/2),~~(sy-16));ctx.lineTo(~~(sx+h.w/2-12),~~(sy+14));ctx.lineTo(~~(sx+h.w/2+12),~~(sy+14));ctx.closePath();ctx.fill();
-      ctx.strokeStyle='#38bdf8';ctx.lineWidth=1.5;
-      ctx.beginPath();ctx.moveTo(~~(sx+h.w/2),~~(sy-16));ctx.lineTo(~~(sx+h.w/2-12),~~(sy+14));ctx.lineTo(~~(sx+h.w/2+12),~~(sy+14));ctx.closePath();ctx.stroke();
-    }
-    else if(style===3){
-      // Two-storey with balcony
-      R(sx+4,sy,h.w-8,h.h,h.color);
-      R(sx+6,sy+2,h.w-12,h.h-4,h.color+'bb');
-      // Flat roof with parapet
-      R(sx,sy-8,h.w,10,'#374151');
-      R(sx-2,sy-12,8,6,h.roof); R(sx+h.w-6,sy-12,8,6,h.roof);
-      R(sx+h.w/2-4,sy-12,8,6,h.roof);
-      ctx.fillStyle='rgba(255,255,255,0.08)'; ctx.fillRect(~~(sx+4),~~sy,~~(h.w-8),~~4);
-      // Ground floor door
-      R(sx+h.w/2-7,sy+h.h-26,14,26,'#3b1e08');
-      R(sx+h.w/2-5,sy+h.h-24,10,22,'#4a2800');
-      R(sx+h.w/2,sy+h.h-14,3,3,'#ffd700');
-      // Ground floor windows
-      R(sx+6,sy+h.h-26,14,12,'#7dd3fc'); O(sx+6,sy+h.h-26,14,12,'#38bdf8',1);
-      R(sx+h.w-20,sy+h.h-26,14,12,'#7dd3fc'); O(sx+h.w-20,sy+h.h-26,14,12,'#38bdf8',1);
-      // Upper floor windows
-      R(sx+6,sy+10,14,12,'#7dd3fc'); O(sx+6,sy+10,14,12,'#38bdf8',1);
-      R(sx+h.w-20,sy+10,14,12,'#7dd3fc'); O(sx+h.w-20,sy+10,14,12,'#38bdf8',1);
-      R(sx+h.w/2-7,sy+10,14,12,'#7dd3fc'); O(sx+h.w/2-7,sy+10,14,12,'#38bdf8',1);
-      // Balcony ledge
-      R(sx+h.w/2-18,sy+h.h/2-2,36,4,'#5a3a10');
-      R(sx+h.w/2-18,sy+h.h/2-10,3,10,'#7c5227'); R(sx+h.w/2+15,sy+h.h/2-10,3,10,'#7c5227');
-      R(sx+h.w/2-6,sy+h.h/2-8,3,8,'#7c5227'); R(sx+h.w/2+3,sy+h.h/2-8,3,8,'#7c5227');
-    }
-    else if(style===4){
-      // Tudor / half-timbered — cross beams on facade
-      R(sx,sy,h.w,h.h,'#f5e6c8');
-      R(sx+3,sy+3,h.w-6,h.h-6,'#f0dbb0');
-      // Timber beams
-      ctx.fillStyle=h.color;
-      R(sx,sy,h.w,6,h.color); R(sx,sy+h.h/2-3,h.w,6,h.color);
-      R(sx,sy,6,h.h,h.color); R(sx+h.w-6,sy,6,h.h,h.color); R(sx+h.w/2-3,sy,6,h.h,h.color);
-      // Diagonal beams
-      ctx.strokeStyle=h.color; ctx.lineWidth=5;
-      ctx.beginPath();ctx.moveTo(~~sx,~~sy);ctx.lineTo(~~(sx+h.w/2),~~(sy+h.h/2));ctx.stroke();
-      ctx.beginPath();ctx.moveTo(~~(sx+h.w),~~sy);ctx.lineTo(~~(sx+h.w/2),~~(sy+h.h/2));ctx.stroke();
-      // Steep gabled roof
-      ctx.fillStyle=h.roof;
-      ctx.beginPath();ctx.moveTo(~~(sx-4),~~sy);ctx.lineTo(~~(sx+h.w/2),~~(sy-32));ctx.lineTo(~~(sx+h.w+4),~~sy);ctx.closePath();ctx.fill();
-      R(sx+h.w/2-7,sy+h.h-22,14,22,'#3b1e08');
-      R(sx+h.w/2-5,sy+h.h-20,10,18,'#4a2800');
-      R(sx+h.w/2,sy+h.h-12,3,3,'#ffd700');
-      R(sx+8,sy+16,16,14,'#7dd3fc'); O(sx+8,sy+16,16,14,'#38bdf8',1);
-      R(sx+h.w-24,sy+16,16,14,'#7dd3fc'); O(sx+h.w-24,sy+16,16,14,'#38bdf8',1);
-      R(sx+h.w*0.62,sy-38,8,14,h.color); R(sx+h.w*0.62-2,sy-40,12,5,'#374151');
-    }
-    else{
-      // Bungalow — wide low with wraparound porch overhang
-      R(sx,sy+18,h.w,h.h-18,h.color);
-      R(sx+3,sy+21,h.w-6,h.h-24,h.color+'cc');
-      // Low hip roof
-      ctx.fillStyle=h.roof;
-      ctx.beginPath();
-      ctx.moveTo(~~(sx-2),~~(sy+20));
-      ctx.lineTo(~~(sx+14),~~(sy+4));
-      ctx.lineTo(~~(sx+h.w-14),~~(sy+4));
-      ctx.lineTo(~~(sx+h.w+2),~~(sy+20));
-      ctx.closePath(); ctx.fill();
-      ctx.fillStyle='rgba(255,255,255,0.1)';
-      ctx.beginPath();
-      ctx.moveTo(~~(sx-2),~~(sy+20));
-      ctx.lineTo(~~(sx+14),~~(sy+4));
-      ctx.lineTo(~~(sx+h.w/2),~~(sy+4));
-      ctx.lineTo(~~(sx+h.w/2-16),~~(sy+20));
-      ctx.closePath(); ctx.fill();
-      // Roof ridge
-      R(sx+14,sy+3,h.w-28,3,h.roof+'aa');
-      // Porch posts
-      R(sx+4,sy+18,5,h.h-18,'#d4b483'); R(sx+h.w-9,sy+18,5,h.h-18,'#d4b483');
-      // Porch overhang
-      R(sx-2,sy+18,h.w+4,6,'#c4a060');
-      // Door
-      R(sx+h.w/2-8,sy+h.h-26,16,26,'#3b1e08');
-      R(sx+h.w/2-6,sy+h.h-24,12,22,'#5a3010');
-      R(sx+h.w/2,sy+h.h-15,3,3,'#ffd700');
-      // Wide windows
-      R(sx+12,sy+26,22,14,'#7dd3fc'); O(sx+12,sy+26,22,14,'#38bdf8',1);
-      R(sx+h.w-34,sy+26,22,14,'#7dd3fc'); O(sx+h.w-34,sy+26,22,14,'#38bdf8',1);
-      R(sx+20,sy+26,2,14,'#38bdf8'); R(sx+12,sy+32,22,2,'#38bdf8');
-      R(sx+h.w-26,sy+26,2,14,'#38bdf8'); R(sx+h.w-34,sy+32,22,2,'#38bdf8');
-      // Chimney
-      R(sx+h.w*0.7,sy-2,10,24,h.color); R(sx+h.w*0.7-2,sy-4,14,5,'#374151');
-    }
-
-    // Night window glow — all styles
-    if(isNight){
-      ctx.fillStyle='rgba(251,191,36,0.22)';
-      if(style===2){
-        ctx.fillStyle='rgba(251,191,36,0.28)';
-        ctx.beginPath();ctx.moveTo(~~(sx+h.w/2),~~(sy-16));ctx.lineTo(~~(sx+h.w/2-12),~~(sy+14));ctx.lineTo(~~(sx+h.w/2+12),~~(sy+14));ctx.closePath();ctx.fill();
-      } else if(style===3){
-        ctx.fillRect(~~(sx+6),~~(sy+10),14,12);
-        ctx.fillRect(~~(sx+h.w-20),~~(sy+10),14,12);
-        ctx.fillRect(~~(sx+h.w/2-7),~~(sy+10),14,12);
-      } else {
-        ctx.fillRect(~~(sx+6),~~(sy+10),18,14);
-        ctx.fillRect(~~(sx+h.w-24),~~(sy+10),18,14);
-      }
-    }
-
-    // Smoke from chimneys at night — styles that have chimneys
-    if((isNight||(tod>0.7||tod<0.25)) && style!==2 && style!==3){
-      const chx = style===5 ? sx+h.w*0.7+5 : style===0 ? sx+h.w*0.6+5 : style===4 ? sx+h.w*0.62+4 : sx+h.w*0.65+5;
-      const chy = style===5 ? sy-4 : sy-38;
-      ctx.fillStyle='rgba(200,200,200,0.38)';
+    // Chimney
+    R(sx+h.w*0.65,sy-36,10,20,h.color);
+    R(sx+h.w*0.65-2,sy-38,14,6,'#374151');
+    if(tod>0.7||tod<0.25){
+      ctx.fillStyle='rgba(200,200,200,0.4)';
       for(let si=0;si<3;si++){
         const sf=(globalT*0.02+si*0.8)%1;
-        ctx.globalAlpha=0.28*(1-sf);
+        ctx.globalAlpha=0.3*(1-sf);
         ctx.beginPath();
-        ctx.arc(~~chx,~~(chy-sf*20),3+sf*4,0,Math.PI*2);
+        ctx.arc(~~(sx+h.w*0.65+5),~~(sy-38-sf*20),3+sf*4,0,Math.PI*2);
         ctx.fill();
       }
       ctx.globalAlpha=1;
@@ -4403,7 +3546,6 @@ function drawTown(){
   pgT++;
   drawPlayground(cx, cy);
   drawBaseballField(cx, cy);
-  drawPond(cx, cy);
 
   TREES.forEach(t=>{
     const tx=t.x-cx, ty=t.y-cy;
@@ -4540,42 +3682,10 @@ function drawTown(){
     }
   });
 
- // Player
+  // Player
   const px2=player.x-cx, py2=player.y-cy;
-  if(player.swimming){
-    // Water splash ripples
-    const sw=Math.sin(globalT*0.18)*4;
-    ctx.fillStyle='rgba(56,189,248,0.35)';
-    ctx.beginPath();ctx.ellipse(~~px2,~~(py2+8),22,10,0,0,Math.PI*2);ctx.fill();
-    ctx.strokeStyle='rgba(147,197,253,0.7)';ctx.lineWidth=1.5;
-    ctx.beginPath();ctx.ellipse(~~px2,~~(py2+8),28+Math.abs(sw),12,0,0,Math.PI*2);ctx.stroke();
-    ctx.beginPath();ctx.ellipse(~~px2,~~(py2+8),18,7,0,0,Math.PI*2);ctx.stroke();
-    // Body — only top half visible above water
-    ctx.save();ctx.beginPath();ctx.rect(px2-20,py2-32,40,28);ctx.clip();
-    drawChar(px2,py2,player.dir,'#3b82f6','#1e293b','#f0c27f','#4a2800',Math.floor(globalT/4)%4,1);
-    ctx.restore();
-    // Arms splashing out to sides
-    const armBob=Math.sin(globalT*0.18)*6;
-    ctx.fillStyle='#f0c27f';
-    ctx.fillRect(~~(px2-18),~~(py2-8+armBob),8,5);
-    ctx.fillRect(~~(px2+10),~~(py2-8-armBob),8,5);
-    // Splash droplets
-    for(let i=0;i<4;i++){
-      const ang=(i/4)*Math.PI*2+globalT*0.12;
-      const dr=14+Math.sin(globalT*0.2+i)*4;
-      ctx.fillStyle=`rgba(147,197,253,${0.4+Math.sin(globalT*0.15+i)*0.3})`;
-      ctx.beginPath();ctx.arc(~~(px2+Math.cos(ang)*dr),~~(py2+4+Math.sin(ang)*6),2,0,Math.PI*2);ctx.fill();
-    }
-    // Bubble trail
-    if(globalT%8===0) floats.push({x:player.x+(Math.random()-.5)*16,y:player.y-10,text:'💧',color:'#7dd3fc',life:30,maxLife:30});
-    R(px2-16,py2-28,32,10,'rgba(0,0,0,0.65)');T('YOU',px2-13,py2-21,'#93c5fd',5);
-    // Slow player while swimming
-    player.speed=1.2;
-  } else {
-    player.speed=2.8;
-    drawChar(px2,py2,player.dir,'#3b82f6','#1e293b','#f0c27f','#4a2800',player.frame,1);
-    R(px2-16,py2-28,32,10,'rgba(0,0,0,0.65)');T('YOU',px2-13,py2-21,'#ffd700',5);
-  }
+  drawChar(px2,py2,player.dir,'#3b82f6','#1e293b','#f0c27f','#4a2800',player.frame,1);
+  R(px2-16,py2-28,32,10,'rgba(0,0,0,0.65)');T('YOU',px2-13,py2-21,'#ffd700',5);
 
   floats.forEach(f=>{ ctx.globalAlpha=f.life/f.maxLife; T(f.text,f.x-cam.x,f.y-cam.y,f.color,8); ctx.globalAlpha=1; });
   particles.forEach(p=>{ ctx.globalAlpha=p.life/p.maxLife; R(p.x-cam.x,p.y-cam.y,p.s,p.s,p.color); ctx.globalAlpha=1; });
@@ -4598,7 +3708,6 @@ function drawMinimap(){
   const scx=mw/MAP_W, scy=mh/MAP_H;
   BUILDINGS.forEach(b=>{ const c=b.type==='myshop'?'#a21caf':b.type==='houseplot'?'#ffd700':'#374151'; R(mx+b.x*scx,my+b.y*scy,b.w*scx,b.h*scy,c); });
   R(mx+TENNIS_COURT.x*scx,my+TENNIS_COURT.y*scy,TENNIS_COURT.w*scx,TENNIS_COURT.h*scy,'#1a56a0');
-  ctx.fillStyle='#1e40af'; ctx.beginPath(); ctx.ellipse(mx+POND.x*scx+POND.w*scx/2, my+POND.y*scy+POND.h*scy/2, POND.w*scx/2, POND.h*scy/2,0,0,Math.PI*2); ctx.fill();
   R(mx+BBALL_COURT.x*scx,my+BBALL_COURT.y*scy,BBALL_COURT.w*scx,BBALL_COURT.h*scy,'#c2410c');
   TREES.forEach(t=>{ ctx.fillStyle='#166534'; ctx.fillRect(~~(mx+t.x*scx-1),~~(my+t.y*scy-1),2,2); });
   // Wandering NPCs on minimap (tiny dots)
@@ -4607,6 +3716,7 @@ function drawMinimap(){
   O(mx+cam.x*scx,my+cam.y*scy,W*scx,H*scy,'rgba(255,255,255,0.5)',1);
 }
 
+// ── SHOP INTERIOR ──
 function drawClock() {
   const tod = gameTime / DAY_LEN;
   const totalMinutes = Math.floor(tod * 24 * 60);
@@ -4617,55 +3727,9 @@ function drawClock() {
   const timeStr = String(h12).padStart(2,'0') + ':' + String(minutes).padStart(2,'0') + ' ' + ampm;
 
   const isNight = tod < 0.15 || tod > 0.82;
-  const clockX = W - 152, clockY = H - 42;
+  const clockX = W - 150, clockY = H - 38;
   const clockW = 142, clockH = 28;
 
-const mScale = Math.min(1, W / 480);
-  const mW = Math.floor(Math.min(W * 0.32, 160) * mScale + Math.max(0, W * 0.32 - 160 * mScale));
-  const mWW = Math.min(W * 0.38, 160);
-  const mH = Math.max(20, Math.floor(26 * mScale));
-  const mX = 8;
-  const mY = H - Math.max(40, Math.floor(44 * mScale)) - mH - 4;
-  const hasClaimable = missions.some(m => m.done && !m.claimed);
-  const pulse = 0.7 + Math.sin(globalT * 0.12) * 0.3;
-  const mBorder = hasClaimable ? `rgba(253,224,71,${pulse})` : '#374151';
-  const mBg = hasClaimable ? 'rgba(253,224,71,0.15)' : 'rgba(0,0,0,0.85)';
-  R(mX, mY, mWW, mH, mBg);
-  O(mX, mY, mWW, mH, mBorder, hasClaimable ? 2 : 1);
-
-  const done = missions.filter(m => m.done && m.claimed).length;
-  const total = missions.length;
-  const claimCount = missions.filter(m => m.done && !m.claimed).length;
-
-  const iconSz = Math.max(9, Math.floor(13 * mScale));
-  ctx.font = iconSz + 'px serif';
-  ctx.fillText('📋', ~~(mX + 4), ~~(mY + mH * 0.72));
-
-  const lblSz = Math.max(4, Math.floor(6 * mScale));
-  const subSz = Math.max(3, Math.floor(5 * mScale));
-  const iconOff = iconSz + 6;
-
-  T('[M] MISSIONS', mX + iconOff, mY + Math.floor(mH * 0.48), hasClaimable ? '#fde047' : '#9ca3af', lblSz);
-  T(done + '/' + total, mX + iconOff, mY + Math.floor(mH * 0.88), '#6b7280', subSz);
-
-  // Progress bar — fits remaining width
-  const pipX = mX + iconOff + Math.floor(subSz * 7);
-  const pipW = Math.max(20, mWW - pipX - mX - (hasClaimable ? 24 : 8));
-  const pipY = mY + Math.floor(mH * 0.55);
-  const pipH = Math.max(4, Math.floor(6 * mScale));
-  R(pipX, pipY, pipW, pipH, '#1f2937');
-  R(pipX, pipY, ~~(pipW * done / total), pipH, '#22c55e');
-  O(pipX, pipY, pipW, pipH, '#374151', 1);
-
-  // Claim badge
-  if(hasClaimable){
-    const bdW = Math.max(16, Math.floor(22 * mScale));
-    const bdH = Math.max(10, Math.floor(13 * mScale));
-    R(mX + mWW - bdW - 2, mY + Math.floor((mH - bdH) / 2), bdW, bdH, '#fde047');
-    T('+' + claimCount, mX + mWW - bdW, mY + Math.floor(mH * 0.62), '#000', subSz);
-  }
-
-  // ── Clock ──
   R(clockX, clockY, clockW, clockH, 'rgba(0,0,0,0.8)');
   O(clockX, clockY, clockW, clockH, isNight ? '#6366f1' : '#fbbf24', 1.5);
 
@@ -4984,16 +4048,6 @@ function playTone(freq,dur,type='sine',vol=0.18,detune=0){
   try{ const ac=getAudio();const o=ac.createOscillator();const g=ac.createGain();o.connect(g);g.connect(ac.destination);o.type=type;o.frequency.value=freq;o.detune.value=detune;g.gain.setValueAtTime(vol,ac.currentTime);g.gain.exponentialRampToValueAtTime(0.001,ac.currentTime+dur);o.start(ac.currentTime);o.stop(ac.currentTime+dur);}catch(e){}
 }
 function sndPickup(){ playTone(660,0.08,'square',0.12); setTimeout(()=>playTone(880,0.08,'square',0.12),80); }
-
-function mLogCollect(key){ missionLog.collect++; missionLog[key]=(missionLog[key]||0)+1; checkMissions(); }
-function mLogSell(n=1){ missionLog.sell+=n; checkMissions(); }
-function mLogCoins(n){ missionLog.coinsEarned+=n; checkMissions(); }
-function mLogBuild(){ missionLog.built=builtCount(); checkMissions(); }
-function mLogScene(key){ missionLog.scenes[key]=(missionLog.scenes[key]||0)+1; checkMissions(); }
-function mLogAct(key){ missionLog.acts[key]=(missionLog.acts[key]||0)+1; checkMissions(); }
-function mLogRoom(key){ missionLog.rooms.add(key); checkMissions(); }
-function mLogBball(n){ missionLog.bballScore+=n; checkMissions(); }
-function mLogWin(key){ missionLog.wins[key]=(missionLog.wins[key]||0)+1; checkMissions(); }
 function sndCoin(){ playTone(523,0.07,'square',0.15); setTimeout(()=>playTone(659,0.07,'square',0.15),70); setTimeout(()=>playTone(784,0.12,'square',0.15),140); }
 function sndBuild(){ [220,330,440,550].forEach((f,i)=>setTimeout(()=>playTone(f,0.1,'sawtooth',0.1),i*60)); }
 function sndSleep(){ playTone(200,0.6,'sine',0.08); setTimeout(()=>playTone(150,0.8,'sine',0.06),300); }
@@ -5289,7 +4343,7 @@ function update(){
   }
 
   if(SCENE==='town') startBgMusic(); // switch music when season changes
-  if(SCENE==='town'){ updateTown(); updateFishing(); }
+  if(SCENE==='town') updateTown();
   if(SCENE==='interior'||SCENE==='pcscreen') updateInterior();
   if(SCENE==='shop') updateShop();
   if(SCENE==='tennis') updateTennis();
@@ -5314,16 +4368,11 @@ function updateTown(){
     if(b.type==='houseplot'||b.type==='myshop') continue;
     if(buildingCollides(b.x,b.y,b.w,b.h,nx,ny)){ blocked=true; break; }
   }
-if(!blocked){
+  if(!blocked){
     for(const t of TREES){
       if(Math.hypot(nx-t.x,ny-t.y)<12){ blocked=true; break; }
     }
   }
-  if(!blocked){
-    const pondCX2=POND.x+POND.w/2, pondCY2=POND.y+POND.h/2;
-    const inPond=Math.hypot(nx-pondCX2,ny-pondCY2)<POND.w/2-8;
-    if(inPond){ player.swimming=true; } else { player.swimming=false; }
-  } else { player.swimming=false; }
   if(!blocked){ player.x=nx; player.y=ny; }
   if(mx||my){ player.animT++; if(player.animT%7===0) player.frame=(player.frame+1)%4; }
   cam.x=Math.max(0,Math.min(MAP_W-W,player.x-W/2));
@@ -5474,20 +4523,13 @@ function interact(){
 }
 
 function iTown(){
-  const px=player.x, py=player.y;
-  const tc=TENNIS_COURT;
-if(px>tc.x-30&&px<tc.x+tc.w+30&&py>tc.y-30&&py<tc.y+tc.h+60){initTennis();return;}
-const bc=BBALL_COURT;
-if(px>bc.x-30&&px<bc.x+bc.w+30&&py>bc.y-30&&py<bc.y+bc.h+60){initBball();return;}
-const bb=BASEBALL_FIELD;
-if(px>bb.x-40&&px<bb.x+bb.w+40&&py>bb.y-40&&py<bb.y+bb.h+60){initBaseball();return;}
+  const px=player.x,py=player.y;
   for(const it of townGroundItems){
     if(!it.collected&&Math.hypot(px-it.x,py-it.y)<40){
       it.collected=true;it.respawnIn=500+Math.random()*300;
       inv[it.key]=(inv[it.key]||0)+1;
       addFloat(it.x,it.y-15,'+'+it.ico,'#4ade80');
-      spawnP(it.x,it.y,'#4ade80');sndPickup();addMsg('Picked up '+it.iname+'!');updateInvUI();
-      mLogCollect(it.key); checkMissions(); return;
+      spawnP(it.x,it.y,'#4ade80');sndPickup();addMsg('Picked up '+it.iname+'!');updateInvUI();return;
     }
   }
   for(const c of buildingCustomers){
@@ -5497,20 +4539,12 @@ if(px>bb.x-40&&px<bb.x+bb.w+40&&py>bb.y-40&&py<bb.y+bb.h+60){initBaseball();retu
       addMsg('Customer served! Coin dropped!');return;
     }
   }
-  // Fishing pond
-  const pondDist=Math.hypot(px-(POND.x+POND.w/2),py-(POND.y+POND.h/2));
-  if(pondDist<110){
-    if(!fishingState.active){ 
-      showTutorial([
-        'Cast your line & WAIT for the BITE prompt',
-        'Press [F] fast when BITE appears!',
-        'Hold [F] repeatedly to reel the fish in',
-        'Keep reel power UP or fish escapes!',
-        'Press ESC to stop fishing anytime'
-      ], '🎣');
-      startFishing(); return;
-    }
-  }
+  const tc=TENNIS_COURT;
+  if(Math.hypot(px-(tc.x+tc.w/2),py-(tc.y+tc.h/2))<110){ initTennis(); return; }
+  const bc=BBALL_COURT;
+  if(Math.hypot(px-(bc.x+bc.w/2),py-(bc.y+bc.h/2))<110){ initBball(); return; }
+  const bb=BASEBALL_FIELD;
+  if(Math.hypot(px-(bb.x+bb.w/2),py-(bb.y+bb.h/2))<130){ initBaseball(); return; }
   const hp2=BUILDINGS.find(b=>b.id==='houseplot');
   if(Math.hypot(px-(hp2.x+hp2.w/2),py-(hp2.y+hp2.h+16))<60){
     if(builtCount()<3){ addMsg('Need Foundation + Walls + Roof first! Press [H]'); return; }
@@ -5550,17 +4584,16 @@ function iShop(){
       addFloat2(nearest.x,nearest.y-30,'+🪙'+si.price+' '+si.ico,'#ffd700');
       spawnP(nearest.x,nearest.y,'#ffd700');sndCoin();
       addMsg('Sold '+si.name+' for 🪙'+si.price+'!');updateHUD();updateInvUI();
-      mLogSell(); mLogCoins(si.price); checkMissions();
     } else { addMsg('Out of '+si.name+'! Go collect more.');nearest.state='browsing';nearest.want=null; }
   } else { addMsg('No customers waiting. Walk near a customer!'); }
 }
 
 function finishAct(id){
-  if(id==='sleep'){ energy=Math.min(100,energy+70);hp=Math.min(100,hp+20);day++;gameTime=Math.floor(DAY_LEN*0.25);addFloat2(W/2,H/2,'💤 Good night! Day '+day,'#6ee7b7');addMsg('You slept through the night! Day '+day);sndEnter();updateHUD(); mLogAct('sleep'); mLogRoom('bedroom'); checkMissions(); }
-  if(id==='cook'){ if(inv.bread>=2&&inv.veggie>=1){inv.bread-=2;inv.veggie-=1;inv.cake++;addFloat2(W/2,H/2,'🎂 Cake made! +1','#ffd700');addMsg('Delicious cake!');updateInvUI();sndCoin(); mLogAct('cook'); mLogRoom('kitchen'); checkMissions();}else{addFloat2(W/2,H/2,'Need bread×2+veggie×1','#e94560');addMsg('Not enough ingredients!');} }
-  if(id==='eat'){ hunger=Math.min(100,hunger+50);hp=Math.min(100,hp+10);addFloat2(W/2,H/2,'😋 +50 Hunger!','#6ee7b7');addMsg('Yum! Feeling better.');sndEat(); mLogAct('eat'); mLogRoom('dining'); checkMissions(); }
-  if(id==='pc'){ coins+=20;addFloat2(W/2,H/2,'🎮 +20🪙 from streaming!','#ffd700');addMsg('Earned coins gaming!');updateHUD();sndCoin(); mLogCoins(20); mLogAct('pc'); mLogRoom('pcroom'); checkMissions(); }
-  if(id==='bathe'){ hp=Math.min(100,hp+15);addFloat2(W/2,H/2,'🛁 Refreshed! +15❤️','#6ee7b7');addMsg('Squeaky clean!');sndBathe(); mLogAct('bathe'); mLogRoom('bathroom'); checkMissions(); }
+  if(id==='sleep'){ energy=Math.min(100,energy+70);hp=Math.min(100,hp+20);day++;gameTime=Math.floor(DAY_LEN*0.25);addFloat2(W/2,H/2,'💤 Good night! Day '+day,'#6ee7b7');addMsg('You slept through the night! Day '+day);sndEnter();updateHUD(); }
+  if(id==='cook'){ if(inv.bread>=2&&inv.veggie>=1){inv.bread-=2;inv.veggie-=1;inv.cake++;addFloat2(W/2,H/2,'🎂 Cake made! +1','#ffd700');addMsg('Delicious cake!');updateInvUI();sndCoin();}else{addFloat2(W/2,H/2,'Need bread×2+veggie×1','#e94560');addMsg('Not enough ingredients!');} }
+  if(id==='eat'){ hunger=Math.min(100,hunger+50);hp=Math.min(100,hp+10);addFloat2(W/2,H/2,'😋 +50 Hunger!','#6ee7b7');addMsg('Yum! Feeling better.');sndEat(); }
+  if(id==='pc'){ coins+=20;addFloat2(W/2,H/2,'🎮 +20🪙 from streaming!','#ffd700');addMsg('Earned coins gaming!');updateHUD();sndCoin(); }
+  if(id==='bathe'){ hp=Math.min(100,hp+15);addFloat2(W/2,H/2,'🛁 Refreshed! +15❤️','#6ee7b7');addMsg('Squeaky clean!');sndBathe(); }
 }
 function addFloat2(x,y,text,color){ floats.push({x,y,text,color,life:80,maxLife:80}); }
 
@@ -5592,30 +4625,13 @@ document.addEventListener('keydown',e=>{
   if(e.key==='e'||e.key==='E'){
     if(SCENE==='tennis'&&tennisState.matchResult){ exitTennis(); return; }
     if(SCENE==='baseball'&&baseballState.result){ exitBaseball(); return; }
-    if(SCENE==='basketball'&&!bballState.result){
-      if(bballState.playerHasBall&&!bballState.shooting&&!bballState.shotMeterActive){
-        bballState.shotMeterActive=true; bballState.shotMeterPower=0; bballState.shotMeterDir=1; return;
-      }
-      return;
-    }
-    interact();
-  }
-  if(e.key==='f'||e.key==='F'){
-    if(SCENE==='town'&&fishingState.active){ fishingInteract(); return; }
+    if(SCENE==='basketball'&&!bballState.shooting&&bballState.playerHasBall&&!bballState.result){
+      bballState.shotMeterActive=true; bballState.shotMeterPower=0; bballState.shotMeterDir=1;
+    } else { interact(); }
   }
   if((e.key==='h'||e.key==='H')&&SCENE!=='menu'){
     const p=document.getElementById('hpanel');
     if(p.style.display==='flex') closePanel('hpanel'); else openPanel('hpanel');
-  }
-  if((e.key==='m'||e.key==='M')&&SCENE!=='menu'){
-    if(missionPanelOpen){
-      missionPanelOpen=false;
-    } else {
-      // claim any completed unclaimed missions
-      const claimable=missions.find(m=>m.done&&!m.claimed);
-      if(claimable){ claimMission(claimable.id); }
-      else { missionPanelOpen=!missionPanelOpen; }
-    }
   }
   if(e.key==='Escape'){
     closePanel('hpanel');
@@ -5626,13 +4642,13 @@ document.addEventListener('keydown',e=>{
     else if(SCENE==='tennis') exitTennis();
     else if(SCENE==='basketball') exitBball();
     else if(SCENE==='baseball') exitBaseball();
-    else if(SCENE==='town'){ if(fishingState.active){ stopFishing(); } else { goToMenu(); } }
+    else if(SCENE==='town'){ goToMenu(); }
   }
 });
 document.addEventListener('keyup',e=>{
   const wasE=e.key==='e'||e.key==='E';
   keys[e.key]=false;
-  if((e.key==='e'||e.key==='E')&&SCENE==='basketball'&&bballState.shotMeterActive&&!bballState.shooting&&bballState.playerHasBall&&!bballState.result){
+  if(wasE&&SCENE==='basketball'&&bballState.shotMeterActive&&!bballState.shooting&&bballState.playerHasBall&&!bballState.result){
     const bs=bballState;
     bs.shotMeterActive=false;
     bs.shooting=true;
@@ -5643,7 +4659,10 @@ document.addEventListener('keyup',e=>{
     sndTennisHit();
   }
 });
-// (removed — merged into mission panel contextmenu handler above)
+canvas.addEventListener('contextmenu',e=>{
+  e.preventDefault();
+  if(SCENE==='pcscreen'){ SCENE='interior';finishAct('pc');addMsg('Closed PC. Coins earned!'); }
+});
 
 // ── SCENE TRANSITIONS ──
 function enterHouse(){
@@ -5706,7 +4725,6 @@ function buildItem(id){
   if(!Object.entries(item.cost).every(([k,v])=>(inv[k]||0)>=v)){ addMsg('Not enough materials!');return; }
   Object.entries(item.cost).forEach(([k,v])=>inv[k]-=v);
   item.done=true;updateInvUI();buildHousePanel();addMsg('Built '+item.name+'! 🎉');sndBuild();
-  mLogBuild(); checkMissions();
   for(let i=0;i<16;i++) particles.push({x:player.x+cam.x+(Math.random()-.5)*60,y:player.y+cam.y-20,vx:(Math.random()-.5)*6,vy:-Math.random()*6-2,color:['#ffd700','#22c55e','#e94560','#3b82f6'][Math.floor(Math.random()*4)],s:5+Math.random()*4,life:50,maxLife:50});
 }
 
@@ -5722,7 +4740,7 @@ function updateHUD(){
   document.getElementById('hpp').textContent=Math.round(builtCount()/HOUSE_ITEMS.length*100)+'%';
 }
 function updateInvUI(){
-  ['bread','veggie','cake','lumber','tool','nail','brick','glass','wire','pipe','fish'].forEach(k=>{
+  ['bread','veggie','cake','lumber','tool','nail','brick','glass','wire','pipe'].forEach(k=>{
     const el=document.getElementById('q-'+k);if(el) el.textContent=inv[k]||0;
   });
 }
@@ -5732,8 +4750,6 @@ function spawnGI(b){ townGroundItems.push({x:b.x+20+Math.random()*(b.w-40),y:b.y
 // ── INIT & LOOP ──
 function initGame(){
   SCENE='town';player.x=500;player.y=850;player.dir=2;
-  initMissions();
-  initFishingPondFish();
   coins=0;hp=100;energy=100;hunger=100;day=1;gameTime=0;
   Object.keys(inv).forEach(k=>inv[k]=0);
   HOUSE_ITEMS.forEach(h=>h.done=false);
@@ -5759,14 +4775,29 @@ function initGame(){
   startBgMusic();
 }
 
-function showTutorial(lines, icon) {
-  tutorialToast = { lines, icon, t: 320 };
-}
-
 function draw(){
   ctx.clearRect(0,0,W,H);
-  updateMobileVisibility();
-if(SCENE==='town') { drawTown(); drawWeather(ctx); drawSeasons(); }
+  if(isMobile()){
+    const exitBtn=document.getElementById('btn-exit');
+    if(exitBtn){
+      const needsExit=SCENE==='interior'||SCENE==='pcscreen'||SCENE==='shop'||SCENE==='tennis'||SCENE==='basketball'||SCENE==='baseball';
+      exitBtn.style.display=needsExit?'flex':'none';
+      const quitBtn=document.getElementById('btn-quit');
+      if(quitBtn) quitBtn.style.display=SCENE==='town'?'flex':'none';
+      // show/hide E, H, space buttons based on scene
+      const eBtn=document.getElementById('btn-e');
+      const hBtn=document.getElementById('btn-h');
+      const spBtn=document.getElementById('btn-space');
+      if(eBtn) eBtn.style.display=(SCENE==='town'||SCENE==='interior'||SCENE==='pcscreen'||SCENE==='shop')?'flex':'none';
+      if(hBtn) hBtn.style.display=(SCENE==='town')?'flex':'none';
+      if(spBtn) spBtn.style.display=(SCENE==='tennis'||SCENE==='baseball')?'flex':'none';
+      const shootBtn2=document.getElementById('btn-shoot');
+      if(shootBtn2) shootBtn2.style.display=SCENE==='basketball'&&!bballState.result&&bballState.playerHasBall?'flex':'none';
+      const sbBtn2=document.getElementById('btn-sb');
+      if(sbBtn2) sbBtn2.style.display=SCENE==='basketball'&&!bballState.result?'flex':'none';
+    }
+  }
+   if(SCENE==='town') { drawTown(); drawWeather(ctx); drawSeasons(); }
   else if(SCENE==='interior') drawInterior();
   else if(SCENE==='pcscreen') drawPCScreen();
   else if(SCENE==='shop') drawShopInterior();
@@ -5774,135 +4805,10 @@ if(SCENE==='town') { drawTown(); drawWeather(ctx); drawSeasons(); }
   else if(SCENE==='basketball') drawBballGame();
   else if(SCENE==='baseball') drawBaseballGame();
   else { R(0,0,W,H,'#0a0a12'); }
-
-
-function showTutorial(lines, icon) {
-  tutorialToast = { lines, icon, t: 320 };
-}
-
-function drawTutorialToast() {
-  if(!tutorialToast) return;
-  tutorialToast.t--;
-  if(tutorialToast.t <= 0) { tutorialToast = null; return; }
-
-  const fade = Math.min(1, tutorialToast.t / 30);
-  const lines = tutorialToast.lines;
-  const icon = tutorialToast.icon;
-  const lineH = 18;
-  const padX = 22, padY = 16;
-  const tw = 340;
-  const th = padY * 2 + 28 + lines.length * lineH;
-  const tx = W / 2 - tw / 2;
-  const ty = H / 2 - th / 2;
-
-  ctx.globalAlpha = fade * 0.97;
-
-  // Shadow
-  ctx.fillStyle = 'rgba(0,0,0,0.5)';
-  ctx.beginPath(); ctx.roundRect(tx+4, ty+4, tw, th, 10); ctx.fill();
-
-  // Background
-  ctx.fillStyle = '#0d1117';
-  ctx.beginPath(); ctx.roundRect(tx, ty, tw, th, 10); ctx.fill();
-
-  // Border
-  ctx.strokeStyle = '#ffd700';
-  ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.roundRect(tx, ty, tw, th, 10); ctx.stroke();
-
-  // Top accent bar
-  ctx.fillStyle = '#ffd70033';
-  ctx.beginPath(); ctx.roundRect(tx, ty, tw, 36, [10,10,0,0]); ctx.fill();
-
-  // Icon + Title
-  ctx.font = '16px serif';
-  ctx.fillStyle = '#ffd700';
-  ctx.fillText(icon, ~~(tx + padX), ~~(ty + 24));
-
-  ctx.font = 'bold 8px "Press Start 2P"';
-  ctx.fillStyle = '#ffd700';
-  ctx.fillText('HOW TO PLAY', ~~(tx + padX + 24), ~~(ty + 24));
-
-  // Close hint
-  ctx.font = '5px "Press Start 2P"';
-  ctx.fillStyle = '#6b7280';
-  ctx.fillText('auto-closes', ~~(tx + tw - 72), ~~(ty + 24));
-
-  // Divider
-  ctx.strokeStyle = '#ffd70044';
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(tx + padX, ty + 36);
-  ctx.lineTo(tx + tw - padX, ty + 36);
-  ctx.stroke();
-
-  // Lines
-  lines.forEach((line, i) => {
-    const ly = ty + 36 + padY + i * lineH;
-    // Bullet dot
-    ctx.fillStyle = '#ffd700';
-    ctx.beginPath(); ctx.arc(~~(tx + padX), ~~(ly - 4), 3, 0, Math.PI*2); ctx.fill();
-    // Text
-    ctx.font = '6px "Press Start 2P"';
-    ctx.fillStyle = '#e2e8f0';
-    ctx.fillText(line, ~~(tx + padX + 12), ~~ly);
-  });
-
-  ctx.globalAlpha = 1;
-}
-  drawTutorialToast();
-  drawMissionToast();
-  drawMissionPanel();
 }
 
 // ── MOBILE CONTROLS ──
 function isMobile(){ return ('ontouchstart' in window) || navigator.maxTouchPoints > 0; }
-
-function updateMobileVisibility(){
-  const mobile = isMobile();
-  const dpad = document.getElementById('dpad');
-  const mbtns = document.getElementById('mbtns');
-  if(!dpad||!mbtns) return;
-
-  if(!mobile){
-    // Desktop — always hide everything
-    dpad.style.display='none';
-    mbtns.style.display='none';
-    return;
-  }
-
-  const canMove = SCENE==='town'||SCENE==='interior'||SCENE==='shop';
-  dpad.style.display = canMove ? 'block' : 'none';
-
-  const exitBtn    = document.getElementById('btn-exit');
-  const quitBtn    = document.getElementById('btn-quit');
-  const eBtn       = document.getElementById('btn-e');
-  const hBtn       = document.getElementById('btn-h');
-  const spBtn      = document.getElementById('btn-space');
-  const shootBtn   = document.getElementById('btn-shoot');
-  const sbBtn      = document.getElementById('btn-sb');
-  const missionBtn = document.getElementById('btn-mission');
-
-  const needsExit = SCENE==='interior'||SCENE==='pcscreen'||SCENE==='shop'||SCENE==='tennis'||SCENE==='basketball'||SCENE==='baseball';
-  if(exitBtn)    exitBtn.style.display    = needsExit ? 'flex' : 'none';
-  if(quitBtn)    quitBtn.style.display    = SCENE==='town' ? 'flex' : 'none';
-  if(eBtn)       eBtn.style.display       = (SCENE==='town'||SCENE==='interior'||SCENE==='shop') ? 'flex' : 'none';
-  if(hBtn)       hBtn.style.display       = SCENE==='town' ? 'flex' : 'none';
-  if(spBtn)      spBtn.style.display      = (SCENE==='tennis'||SCENE==='baseball') ? 'flex' : 'none';
-  if(shootBtn)   shootBtn.style.display   = (SCENE==='basketball'&&!bballState.result&&bballState.playerHasBall) ? 'flex' : 'none';
-  if(sbBtn)      sbBtn.style.display      = (SCENE==='basketball'&&!bballState.result) ? 'flex' : 'none';
-  if(missionBtn) missionBtn.style.display = (SCENE==='town'&&!missionPanelOpen) ? 'flex' : 'none';
-  // pulse gold border if claimable
-  if(missionBtn){
-    const hasC=missions.some(m=>m.done&&!m.claimed);
-    missionBtn.style.borderColor = hasC ? '#fde047' : '#4b5563';
-    missionBtn.style.color       = hasC ? '#fde047' : '#9ca3af';
-    missionBtn.style.background  = hasC ? 'rgba(253,224,71,0.15)' : '#1a1a2e';
-  }
-
-  const anyVisible = needsExit||SCENE==='town'||SCENE==='interior'||SCENE==='shop'||SCENE==='tennis'||SCENE==='baseball'||SCENE==='basketball';
-  mbtns.style.display = anyVisible ? 'flex' : 'none';
-}
 
 function setupMobileControls(){
   if(!isMobile()) return;
@@ -5912,181 +4818,19 @@ function setupMobileControls(){
   mb.style.flexDirection='column';
   mb.style.gap='6px';
   mb.style.alignItems='flex-end';
-
-  // ── JOYSTICK ──
-  const jc = document.getElementById('joystick-canvas');
-  const jCtx = jc.getContext('2d');
-  const JR = 52;   // base radius
-  const KR = 26;   // knob radius
-  const CX = 65, CY = 65; // center
-  let jActive = false, jTouchId = null;
-  let knobX = CX, knobY = CY;
-
-function pxRect(x, y, w, h, color) {
-    jCtx.fillStyle = color;
-    jCtx.fillRect(~~x, ~~y, ~~w, ~~h);
-  }
-
-  function drawJoystick() {
-    jCtx.clearRect(0, 0, 130, 130);
-    const P = 4; // pixel block size
-
-    // ── BASE — pixelated octagon built from rectangles ──
-    const baseCol   = 'rgba(0,0,0,0.55)';
-    const rimCol    = jActive ? '#b38600' : '#4a3800';
-    const rimLit    = jActive ? '#ffd700' : '#7c5c00';
-    const rimShad   = '#1a1000';
-
-    // Fill octagon with pixel blocks
-    for(let py2=CY-JR; py2<CY+JR; py2+=P){
-      for(let px2=CX-JR; px2<CX+JR; px2+=P){
-        const dx=px2+P/2-CX, dy=py2+P/2-CY;
-        const dist=Math.hypot(dx,dy);
-        if(dist<JR-P){
-          pxRect(px2, py2, P, P, baseCol);
-        } else if(dist<JR){
-          // rim pixel — light top-left, dark bottom-right
-          const angle=Math.atan2(dy,dx);
-          const isLit = angle > -Math.PI*0.9 && angle < 0;
-          pxRect(px2, py2, P, P, isLit ? rimLit : rimCol);
-        }
-      }
-    }
-
-    // Pixel cross/diamond guide on base
-    const guideCol = 'rgba(255,215,0,0.12)';
-    for(let i=-JR+P; i<JR; i+=P){
-      pxRect(CX+i, CY-P/2, P, P, guideCol);
-      pxRect(CX-P/2, CY+i, P, P, guideCol);
-    }
-
-    // ── KNOB — pixel square with beveled border ──
-    const kx = ~~(knobX - KR);
-    const ky = ~~(knobY - KR);
-    const ks = KR * 2;
-
-    // Shadow (offset pixel block)
-    for(let sy2=ky+3; sy2<ky+ks+3; sy2+=P){
-      for(let sx2=kx+3; sx2<kx+ks+3; sx2+=P){
-        pxRect(sx2, sy2, P, P, 'rgba(0,0,0,0.4)');
-      }
-    }
-
-    // Main knob body — pixel grid with slight color variation
-    const knobBase  = jActive ? '#ffd700' : '#c8920a';
-    const knobDark  = jActive ? '#c8a000' : '#8a6400';
-    const knobLight = jActive ? '#ffe566' : '#e0aa22';
-    for(let ry2=ky; ry2<ky+ks; ry2+=P){
-      for(let rx2=kx; rx2<kx+ks; rx2+=P){
-        const col = (rx2+ry2)%(P*2)===0 ? knobLight : knobBase;
-        pxRect(rx2, ry2, P, P, col);
-      }
-    }
-
-    // Knob dark bottom-right bevel
-    for(let i=0; i<ks; i+=P){
-      pxRect(kx+ks,    ky+i,  P, P, knobDark);  // right edge
-      pxRect(kx+i,     ky+ks, P, P, knobDark);  // bottom edge
-    }
-    // Knob light top-left bevel
-    for(let i=0; i<ks; i+=P){
-      pxRect(kx+i, ky,    P, P, knobLight); // top edge
-      pxRect(kx,   ky+i,  P, P, knobLight); // left edge
-    }
-    // Corner pixels
-    pxRect(kx,      ky,      P, P, knobLight);
-    pxRect(kx+ks,   ky+ks,   P, P, rimShad);
-
-    // Knob face — 3 pixel dots like a controller nub
-    const dotCol = jActive ? 'rgba(0,0,0,0.55)' : 'rgba(0,0,0,0.4)';
-    pxRect(knobX-P,   knobY-P,   P, P, dotCol);
-    pxRect(knobX,     knobY-P,   P, P, dotCol);
-    pxRect(knobX-P/2, knobY,     P, P, dotCol);
-
-    // Direction arrows on base (pixel chevrons)
-    const arrowCol = jActive ? 'rgba(255,215,0,0.5)' : 'rgba(255,215,0,0.2)';
-    // Up arrow
-    pxRect(CX-P/2, CY-JR+P*2,   P, P, arrowCol);
-    pxRect(CX-P,   CY-JR+P*3,   P, P, arrowCol);
-    pxRect(CX,     CY-JR+P*3,   P, P, arrowCol);
-    // Down arrow
-    pxRect(CX-P/2, CY+JR-P*3,   P, P, arrowCol);
-    pxRect(CX-P,   CY+JR-P*4,   P, P, arrowCol);
-    pxRect(CX,     CY+JR-P*4,   P, P, arrowCol);
-    // Left arrow
-    pxRect(CX-JR+P*2, CY-P/2,   P, P, arrowCol);
-    pxRect(CX-JR+P*3, CY-P,     P, P, arrowCol);
-    pxRect(CX-JR+P*3, CY,       P, P, arrowCol);
-    // Right arrow
-    pxRect(CX+JR-P*3, CY-P/2,   P, P, arrowCol);
-    pxRect(CX+JR-P*4, CY-P,     P, P, arrowCol);
-    pxRect(CX+JR-P*4, CY,       P, P, arrowCol);
-  }
-
-  function applyJoystick(dx, dy) {
-    const dead = 0.18;
-    const ax = dx / JR, ay = dy / JR;
-    keys['ArrowLeft']  = ax < -dead;
-    keys['ArrowRight'] = ax >  dead;
-    keys['ArrowUp']    = ay < -dead;
-    keys['ArrowDown']  = ay >  dead;
-  }
-
-  function resetJoystick() {
-    jActive = false; jTouchId = null;
-    knobX = CX; knobY = CY;
-    keys['ArrowLeft']=keys['ArrowRight']=keys['ArrowUp']=keys['ArrowDown']=false;
-    drawJoystick();
-  }
-
-  jc.addEventListener('touchstart', e=>{
-    e.preventDefault();
-    if(jTouchId !== null) return;
-    const t = e.changedTouches[0];
-    jTouchId = t.identifier;
-    jActive = true;
-    const r = jc.getBoundingClientRect();
-    const lx = t.clientX - r.left - CX;
-    const ly = t.clientY - r.top  - CY;
-    const dist = Math.hypot(lx, ly);
-    const clamped = Math.min(dist, JR);
-    const angle = Math.atan2(ly, lx);
-    knobX = CX + Math.cos(angle)*clamped;
-    knobY = CY + Math.sin(angle)*clamped;
-    applyJoystick(knobX-CX, knobY-CY);
-    drawJoystick();
-  }, {passive:false});
-
-  jc.addEventListener('touchmove', e=>{
-    e.preventDefault();
-    for(const t of e.changedTouches){
-      if(t.identifier !== jTouchId) continue;
-      const r = jc.getBoundingClientRect();
-      const lx = t.clientX - r.left - CX;
-      const ly = t.clientY - r.top  - CY;
-      const dist = Math.hypot(lx, ly);
-      const clamped = Math.min(dist, JR);
-      const angle = Math.atan2(ly, lx);
-      knobX = CX + Math.cos(angle)*clamped;
-      knobY = CY + Math.sin(angle)*clamped;
-      applyJoystick(knobX-CX, knobY-CY);
-      drawJoystick();
-    }
-  }, {passive:false});
-
-  jc.addEventListener('touchend', e=>{
-    e.preventDefault();
-    for(const t of e.changedTouches){
-      if(t.identifier === jTouchId) resetJoystick();
-    }
-  }, {passive:false});
-
-  jc.addEventListener('touchcancel', e=>{
-    e.preventDefault();
-    resetJoystick();
-  }, {passive:false});
-
-  drawJoystick();
+  function holdKey(k){ return { start(){ keys[k]=true; }, stop(){ keys[k]=false; } }; }
+  const map = {
+    'btn-up':    holdKey('ArrowUp'),
+    'btn-down':  holdKey('ArrowDown'),
+    'btn-left':  holdKey('ArrowLeft'),
+    'btn-right': holdKey('ArrowRight'),
+  };
+  Object.entries(map).forEach(([id,ctrl])=>{
+    const el=document.getElementById(id);
+    el.addEventListener('touchstart',e=>{e.preventDefault();ctrl.start();},{passive:false});
+    el.addEventListener('touchend',  e=>{e.preventDefault();ctrl.stop(); },{passive:false});
+    el.addEventListener('touchcancel',e=>{e.preventDefault();ctrl.stop();},{passive:false});
+  });
 
   // E button
   document.getElementById('btn-e').addEventListener('touchstart',e=>{
@@ -6170,16 +4914,6 @@ function pxRect(x, y, w, h, color) {
   document.getElementById('btn-quit').addEventListener('touchstart',e=>{
     e.preventDefault();
     if(SCENE==='town') goToMenu();
-  },{passive:false});
-
-  // MISSION button
-  document.getElementById('btn-mission').addEventListener('touchstart',e=>{
-    e.preventDefault();
-    if(missionPanelOpen){
-      missionPanelOpen=false; missionHover=null; canvas.style.cursor='default';
-    } else {
-      missionPanelOpen=true;
-    }
   },{passive:false});
 
   // EXIT button
