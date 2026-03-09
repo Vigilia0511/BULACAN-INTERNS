@@ -95,11 +95,13 @@ html,body{width:100%;height:100%;background:#0a0a12;display:flex;flex-direction:
   <button class="mact-btn" id="btn-h" style="background:#7c3aed;color:#fff;">H</button>
   <button class="mact-btn" id="btn-space" style="background:#e94560;color:#fff;display:none;">●</button>
   <button class="mact-btn" id="btn-exit" style="background:#7f1d1d;color:#fff;display:none;font-size:8px;align-items:center;justify-content:center;text-align:center;line-height:1;">EXIT</button>
+  <button class="mact-btn" id="btn-bball-exit" style="background:#7f1d1d;color:#fff;display:none;font-size:8px;align-items:center;justify-content:center;text-align:center;line-height:1;position:fixed;bottom:80px;right:12px;">EXIT</button>
 <button class="mact-btn" id="btn-quit" style="background:#1a1a2e;color:#e94560;border:2px solid #e94560;display:none;font-family:'Press Start 2P',monospace;font-size:7px;align-items:center;justify-content:center;text-align:center;line-height:1.2;">🏠<br>MENU</button>
 <button class="mact-btn" id="btn-mission" style="background:#1a1a2e;color:#fde047;border:2px solid #fde047;display:none;font-family:'Press Start 2P',monospace;font-size:7px;align-items:center;justify-content:center;text-align:center;line-height:1.2;">📋<br>M</button>
 <button class="mact-btn" id="btn-fish" style="background:#0c4a6e;color:#7dd3fc;border:2px solid #38bdf8;display:none;font-family:'Press Start 2P',monospace;font-size:7px;align-items:center;justify-content:center;text-align:center;line-height:1.2;">🎣<br>F</button>
-  <button class="mact-btn" id="btn-sb" style="background:#065f46;color:#fff;display:none;font-size:6px;align-items:center;justify-content:center;text-align:center;line-height:1.3;">STL/<br>BLK</button>
-  <button class="mact-btn" id="btn-shoot" style="background:#1d4ed8;color:#fff;display:none;font-size:6px;align-items:center;justify-content:center;text-align:center;line-height:1;">🏀<br>SHOOT</button>
+<button class="mact-btn" id="btn-shoot" style="background:#1d4ed8;color:#fff;display:none;font-size:6px;align-items:center;justify-content:center;text-align:center;line-height:1;">🏀<br>SHOOT</button>  
+<button class="mact-btn" id="btn-sb" style="background:#065f46;color:#fff;display:none;font-size:6px;align-items:center;justify-content:center;text-align:center;line-height:1.3;">STL/<br>BLK</button>
+  
 </div>
 <div id="inv-bar">
     <div class="inv-lbl">BAG</div>
@@ -5884,7 +5886,7 @@ function updateMobileVisibility(){
   const sbBtn      = document.getElementById('btn-sb');
   const missionBtn = document.getElementById('btn-mission');
 
-  const needsExit = SCENE==='interior'||SCENE==='pcscreen'||SCENE==='shop'||SCENE==='tennis'||SCENE==='basketball'||SCENE==='baseball';
+  const needsExit = SCENE==='interior'||SCENE==='pcscreen'||SCENE==='shop'||SCENE==='tennis'||SCENE==='baseball';
   if(exitBtn)    exitBtn.style.display    = needsExit ? 'flex' : 'none';
   if(quitBtn)    quitBtn.style.display    = SCENE==='town' ? 'flex' : 'none';
   if(eBtn)       eBtn.style.display       = (SCENE==='town'||SCENE==='interior'||SCENE==='shop') ? 'flex' : 'none';
@@ -5892,6 +5894,22 @@ function updateMobileVisibility(){
   if(spBtn)      spBtn.style.display      = (SCENE==='tennis'||SCENE==='baseball') ? 'flex' : 'none';
   if(shootBtn)   shootBtn.style.display   = (SCENE==='basketball'&&!bballState.result&&bballState.playerHasBall) ? 'flex' : 'none';
   if(sbBtn)      sbBtn.style.display      = (SCENE==='basketball'&&!bballState.result) ? 'flex' : 'none';
+  const bballExitBtn = document.getElementById('btn-bball-exit');
+  if(bballExitBtn){
+    bballExitBtn.style.display = SCENE==='basketball' ? 'flex' : 'none';
+    if(SCENE==='basketball'){
+      // Always place below both shoot and stl/blk regardless of their visibility
+      const shootVisible = shootBtn ? shootBtn.style.display !== 'none' : false;
+      const sbVisible    = sbBtn    ? sbBtn.style.display    !== 'none' : false;
+      const btnH = 52, gap = 6;
+      let stackH = 80; // base bottom margin
+      stackH += btnH + gap; // shoot slot always reserved
+      stackH += btnH + gap; // stl/blk slot always reserved
+      bballExitBtn.style.bottom = stackH + 'px';
+      bballExitBtn.style.right  = '12px';
+      bballExitBtn.style.position = 'fixed';
+    }
+  }
   if(missionBtn) missionBtn.style.display = (SCENE==='town'&&!missionPanelOpen) ? 'flex' : 'none';
   const fishBtn = document.getElementById('btn-fish');
   if(fishBtn) fishBtn.style.display = (SCENE==='town'&&fishingState.active) ? 'flex' : 'none';
@@ -6200,8 +6218,13 @@ function pxRect(x, y, w, h, color) {
     else if(SCENE==='interior'&&hAct){ hAct=null;hProg=0;actAnimT=0;addMsg('Cancelled.'); }
     else if(SCENE==='shop') exitShop();
     else if(SCENE==='tennis') exitTennis();
-    else if(SCENE==='basketball') exitBball();
     else if(SCENE==='baseball') exitBaseball();
+  },{passive:false});
+
+  // BASKETBALL EXIT button (bottom of shoot+stl stack)
+  document.getElementById('btn-bball-exit').addEventListener('touchstart',e=>{
+    e.preventDefault();
+    exitBball();
   },{passive:false});
 
   // ESC via swipe-down on canvas
