@@ -99,6 +99,7 @@ html,body{width:100%;height:100%;background:#0a0a12;display:flex;flex-direction:
 <button class="mact-btn" id="btn-quit" style="background:#1a1a2e;color:#e94560;border:2px solid #e94560;display:none;font-family:'Press Start 2P',monospace;font-size:7px;align-items:center;justify-content:center;text-align:center;line-height:1.2;">🏠<br>MENU</button>
 <button class="mact-btn" id="btn-mission" style="background:#1a1a2e;color:#fde047;border:2px solid #fde047;display:none;font-family:'Press Start 2P',monospace;font-size:7px;align-items:center;justify-content:center;text-align:center;line-height:1.2;">📋<br>M</button>
 <button class="mact-btn" id="btn-fish" style="background:#0c4a6e;color:#7dd3fc;border:2px solid #38bdf8;display:none;font-family:'Press Start 2P',monospace;font-size:7px;align-items:center;justify-content:center;text-align:center;line-height:1.2;">🎣<br>F</button>
+<button class="mact-btn" id="btn-reel" style="background:#164e63;color:#67e8f9;border:2px solid #06b6d4;display:none;font-family:'Press Start 2P',monospace;font-size:7px;align-items:center;justify-content:center;text-align:center;line-height:1.2;">🪝<br>REEL</button>
 <button class="mact-btn" id="btn-shoot" style="background:#1d4ed8;color:#fff;display:none;font-size:6px;align-items:center;justify-content:center;text-align:center;line-height:1;">🏀<br>SHOOT</button>  
 <button class="mact-btn" id="btn-sb" style="background:#065f46;color:#fff;display:none;font-size:6px;align-items:center;justify-content:center;text-align:center;line-height:1.3;">STL/<br>BLK</button>
   
@@ -5914,6 +5915,8 @@ function updateMobileVisibility(){
   if(missionBtn) missionBtn.style.display = (SCENE==='town'&&!missionPanelOpen) ? 'flex' : 'none';
   const fishBtn = document.getElementById('btn-fish');
   if(fishBtn) fishBtn.style.display = (SCENE==='town'&&fishingState.active) ? 'flex' : 'none';
+  const reelBtn = document.getElementById('btn-reel');
+  if(reelBtn) reelBtn.style.display = (SCENE==='town'&&fishingState.active&&fishingState.phase==='reeling') ? 'flex' : 'none';
   // pulse gold border if claimable
   if(missionBtn){
     const hasC=missions.some(m=>m.done&&!m.claimed);
@@ -6192,6 +6195,21 @@ function pxRect(x, y, w, h, color) {
   document.getElementById('btn-quit').addEventListener('touchstart',e=>{
     e.preventDefault();
     if(SCENE==='town') goToMenu();
+  },{passive:false});
+
+  // REEL button — hold to pump reel power
+  const reelBtnEl = document.getElementById('btn-reel');
+  reelBtnEl.addEventListener('touchstart',e=>{
+    e.preventDefault();
+    keys['f']=true;
+  },{passive:false});
+  reelBtnEl.addEventListener('touchend',e=>{
+    e.preventDefault();
+    keys['f']=false;
+  },{passive:false});
+  reelBtnEl.addEventListener('touchcancel',e=>{
+    e.preventDefault();
+    keys['f']=false;
   },{passive:false});
 
   // FISH button
