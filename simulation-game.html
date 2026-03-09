@@ -577,7 +577,6 @@ canvas.addEventListener('click', e=>{
 canvas.addEventListener('touchstart', e=>{
   if(!missionPanelOpen) return;
   e.preventDefault();
-  e.stopPropagation();
   const rect=canvas.getBoundingClientRect();
   const t=e.changedTouches[0];
   const mx=t.clientX-rect.left, my=t.clientY-rect.top;
@@ -1843,6 +1842,7 @@ function updateFishing() {
 
   else if(fs.phase==='reeling') {
     fs.reelT++;
+    if(keys['f']||keys['F']) fs.reelPower = Math.min(100, fs.reelPower+14);
     fs.reelPower -= 0.55; // drain if not pressing
     fs.reelPower = Math.max(0, Math.min(100, fs.reelPower));
     if(fs.reelPower<=0) {
@@ -6225,21 +6225,25 @@ function pxRect(x, y, w, h, color) {
     e.preventDefault();
     if(SCENE==='town'&&fishingState.active){
       fishingInteract();
+      keys['f']=true;
     }
+  },{passive:false});
+  document.getElementById('btn-fish').addEventListener('touchend',e=>{
+    e.preventDefault();
+    keys['f']=false;
+  },{passive:false});
+  document.getElementById('btn-fish').addEventListener('touchcancel',e=>{
+    e.preventDefault();
+    keys['f']=false;
   },{passive:false});
 
   // MISSION button
   document.getElementById('btn-mission').addEventListener('touchstart',e=>{
     e.preventDefault();
     e.stopPropagation();
+    missionPanelOpen = true;
+    missionHover=null;
   },{passive:false});
-  document.getElementById('btn-mission').addEventListener('touchend',e=>{
-    e.preventDefault();
-    e.stopPropagation();
-    missionPanelOpen = !missionPanelOpen;
-    if(!missionPanelOpen){ missionHover=null; canvas.style.cursor='default'; }
-  },{passive:false});
-
   // EXIT button
   document.getElementById('btn-exit').addEventListener('touchstart',e=>{
     e.preventDefault();
