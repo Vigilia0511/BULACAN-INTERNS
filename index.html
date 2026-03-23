@@ -403,6 +403,8 @@
       cursor: pointer;
       transition: all 0.35s cubic-bezier(0.23, 1, 0.32, 1);
       group: true;
+      text-decoration: none;
+      display: block;
     }
 
     .game-card:hover {
@@ -455,6 +457,7 @@
     .badge-hot { background: rgba(255,140,0,0.2); color: #ff8c00; border: 1px solid rgba(255,140,0,0.3); }
     .badge-locked { background: rgba(74,96,128,0.2); color: var(--muted); border: 1px solid var(--border); }
     .badge-popular { background: rgba(123,47,255,0.2); color: #a96fff; border: 1px solid rgba(123,47,255,0.3); }
+    .badge-external { background: rgba(0,229,255,0.15); color: var(--accent); border: 1px solid rgba(0,229,255,0.3); }
 
     .card-body {
       padding: 16px 18px 18px;
@@ -800,7 +803,6 @@
         font-size: 12px;
       }
 
-      /* Team section stack */
       div[style*="display: flex; align-items: center; gap: 30px"] {
         flex-direction: column !important;
         gap: 20px !important;
@@ -1238,6 +1240,24 @@
         </div>
       </div>
     </div>
+
+    <!-- GRIDPUNK EXTERNAL GAME CARD -->
+    <a class="game-card" data-cat="action" href="https://www.crazygames.com/game/gridpunk---3v3-battle-royale" target="_blank" rel="noopener noreferrer">
+      <div class="card-visual" style="background: linear-gradient(135deg,#0a1a2a,#1a0a2a);">
+        <div class="card-overlay"></div>
+        <span class="card-badge badge-external">🔗 EXTERNAL</span>
+        <div class="card-icon" style="--c:#00e5ff">⚔️</div>
+      </div>
+      <div class="card-body">
+        <div class="card-title">GRIDPUNK 3V3</div>
+        <div class="card-desc">Fast-paced 3v3 battle royale on a grid! Outmaneuver and eliminate your opponents to dominate the arena.</div>
+        <div class="card-dev">🌐 CrazyGames</div>
+        <div class="card-footer">
+          <span class="card-players">👥 3v3</span>
+          <div class="card-difficulty"><div class="diff-dot active hard"></div><div class="diff-dot active hard"></div><div class="diff-dot active hard"></div></div>
+        </div>
+      </div>
+    </a>
 
   </div>
 
