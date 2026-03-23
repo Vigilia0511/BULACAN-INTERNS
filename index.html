@@ -864,6 +864,70 @@
       .ach-pts { font-size: 9px; }
     }
 
+    /* === FULLSCREEN GAME OVERLAY === */
+    .game-overlay {
+      position: fixed;
+      inset: 0;
+      background: #000;
+      z-index: 200;
+      display: none;
+      flex-direction: column;
+    }
+    .game-overlay.open { display: flex; }
+
+    .game-overlay-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 18px;
+      background: rgba(4,8,18,0.95);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+      gap: 12px;
+    }
+
+    .game-overlay-title {
+      font-family: 'Orbitron', monospace;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--accent);
+      letter-spacing: 2px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .game-overlay-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .overlay-btn {
+      font-family: 'Orbitron', monospace;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      padding: 7px 16px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .overlay-btn:hover { border-color: var(--accent); color: var(--accent); background: rgba(0,229,255,0.06); }
+    .overlay-btn.close-btn:hover { border-color: var(--accent2); color: var(--accent2); background: rgba(255,60,110,0.06); }
+
+    .game-overlay iframe {
+      flex: 1;
+      width: 100%;
+      border: none;
+    }
+
     @media (max-width: 480px) {
       header {
         padding: 12px;
@@ -1242,7 +1306,7 @@
     </div>
 
     <!-- GRIDPUNK EXTERNAL GAME CARD -->
-    <a class="game-card" data-cat="action" href="https://www.crazygames.com/game/gridpunk---3v3-battle-royale" target="_blank" rel="noopener noreferrer">
+    <div class="game-card" data-cat="action" onclick="playGridpunk()">
       <div class="card-visual" style="background: linear-gradient(135deg,#0a1a2a,#1a0a2a);">
         <div class="card-overlay"></div>
         <span class="card-badge badge-external">🔗 EXTERNAL</span>
@@ -1257,7 +1321,7 @@
           <div class="card-difficulty"><div class="diff-dot active hard"></div><div class="diff-dot active hard"></div><div class="diff-dot active hard"></div></div>
         </div>
       </div>
-    </a>
+    </div>
 
   </div>
 
@@ -1365,6 +1429,18 @@
   </div>
 </main>
 
+<!-- FULLSCREEN GAME OVERLAY -->
+<div class="game-overlay" id="gameOverlay">
+  <div class="game-overlay-bar">
+    <div class="game-overlay-title">⚔️ GRIDPUNK 3V3 — BATTLE ROYALE</div>
+    <div class="game-overlay-actions">
+      <button class="overlay-btn" onclick="requestFullscreen()">⛶ FULLSCREEN</button>
+      <button class="overlay-btn close-btn" onclick="closeGameOverlay()">✕ EXIT</button>
+    </div>
+  </div>
+  <iframe id="gameFrame" src="" allowfullscreen allow="fullscreen; autoplay"></iframe>
+</div>
+
 <!-- MODAL -->
 <div class="modal-backdrop" id="modal" onclick="closeModal(event)">
   <div class="modal">
@@ -1433,6 +1509,44 @@
       closeModal();
     }, 1200);
   };
+
+  function playGridpunk() {
+    const overlay = document.getElementById('gameOverlay');
+    const frame = document.getElementById('gameFrame');
+    frame.src = 'https://www.crazygames.com/embed/gridpunk---3v3-battle-royale';
+    overlay.classList.add('open');
+    document.body.style.overflow = 'hidden';
+    if (overlay.requestFullscreen) overlay.requestFullscreen();
+    else if (overlay.webkitRequestFullscreen) overlay.webkitRequestFullscreen();
+    else if (overlay.mozRequestFullScreen) overlay.mozRequestFullScreen();
+  }
+
+  function closeGameOverlay() {
+    const overlay = document.getElementById('gameOverlay');
+    const frame = document.getElementById('gameFrame');
+    overlay.classList.remove('open');
+    frame.src = '';
+    document.body.style.overflow = '';
+    if (document.exitFullscreen) document.exitFullscreen();
+    else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+    else if (document.mozCancelFullScreen) document.mozCancelFullScreen();
+  }
+
+  function requestFullscreen() {
+    const overlay = document.getElementById('gameOverlay');
+    if (overlay.requestFullscreen) overlay.requestFullscreen();
+    else if (overlay.webkitRequestFullscreen) overlay.webkitRequestFullscreen();
+    else if (overlay.mozRequestFullScreen) overlay.mozRequestFullScreen();
+  }
+
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+      const overlay = document.getElementById('gameOverlay');
+      if (overlay.classList.contains('open') && !document.fullscreenElement) {
+        closeGameOverlay();
+      }
+    }
+  });
 
   function filterCat(btn, cat) {
     document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
