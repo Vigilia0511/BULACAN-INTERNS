@@ -926,6 +926,80 @@
       flex: 1;
       width: 100%;
       border: none;
+      min-height: 0;
+    }
+
+    /* Overlay responsive — tablet */
+    @media (max-width: 768px) {
+      .game-overlay-bar {
+        padding: 8px 12px;
+        gap: 8px;
+      }
+      .game-overlay-title {
+        font-size: 11px;
+        letter-spacing: 1px;
+        flex: 1;
+        min-width: 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .overlay-btn {
+        font-size: 9px;
+        padding: 6px 12px;
+        letter-spacing: 0.5px;
+      }
+    }
+
+    /* Overlay responsive — mobile */
+    @media (max-width: 480px) {
+      .game-overlay-bar {
+        padding: 6px 10px;
+        gap: 6px;
+      }
+      .game-overlay-title {
+        font-size: 10px;
+        letter-spacing: 0.5px;
+      }
+      .game-overlay-actions { gap: 6px; }
+      .overlay-btn {
+        font-size: 8px;
+        padding: 5px 8px;
+        border-radius: 4px;
+        gap: 3px;
+      }
+    }
+
+    /* Games grid — 2 cols on tablet */
+    @media (max-width: 768px) {
+      .games-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 14px;
+      }
+      .card-visual { height: 130px; }
+      .card-icon { font-size: 58px; }
+    }
+
+    /* Games grid — 2 cols on mobile, 1 col on tiny screens */
+    @media (max-width: 480px) {
+      .games-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+      }
+      .card-visual { height: 110px; }
+      .card-icon { font-size: 46px; }
+      .card-title { font-size: 11px; }
+      .card-desc { font-size: 11px; }
+      .card-dev { font-size: 9px; }
+    }
+
+    @media (max-width: 360px) {
+      .games-grid {
+        grid-template-columns: 1fr;
+        gap: 10px;
+      }
+      .card-visual { height: 130px; }
+      .card-icon { font-size: 54px; }
     }
 
     @media (max-width: 480px) {
@@ -958,22 +1032,14 @@
       .stat-label { font-size: 8px; }
       .stat-value { font-size: 12px; }
 
-      .games-grid {
-        grid-template-columns: 1fr;
-        gap: 12px;
-        margin-bottom: 30px;
-      }
-
       .game-card {
         border-radius: 10px;
       }
 
-      .card-visual { height: 140px; }
-      .card-icon { font-size: 56px; }
       .card-badge { font-size: 8px; top: 8px; right: 8px; }
 
       .card-body {
-        padding: 12px 14px;
+        padding: 10px 12px;
       }
 
       .card-title { font-size: 12px; }
